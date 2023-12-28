@@ -936,7 +936,7 @@ const contraCorrenteVueApp = createApp({
     isCPFCNPJValid () {
       const { customerCPFCNPJModel, isValidationRunningForField } = this
 
-      if (!isValidationRunningForField('customerCPFCNPJ')) {
+      if (isValidationRunningForField('customerCPFCNPJ')) {
         return (/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/.test(customerCPFCNPJModel) && isValidCPF(customerCPFCNPJModel) || /^\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}$/.test(customerCPFCNPJModel)) && isValidCNPJ(customerCPFCNPJModel)
       }
 
@@ -946,7 +946,7 @@ const contraCorrenteVueApp = createApp({
     isBirthdateValid () {
       const { customerBirthdataModel, isValidationRunningForField } = this
 
-      if (!isValidationRunningForField('customerBirthdate')) return true
+      if (isValidationRunningForField('customerBirthdate')) return true
 
       return /\d{2}\/\d{2}\/\d{4}/.test(customerBirthdataModel)
     }
