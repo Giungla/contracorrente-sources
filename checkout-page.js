@@ -1009,19 +1009,19 @@ function validateCard (e) {
 
 function validaCPF (cpf) {
   if (cpf.length <= 6) {
-    this.value = cpf.replace(/(\d{3})(\d{1,3})/, '$1.$2')
+    this.value = cpf.replace(/^(\d{3})(\d{1,3})/, '$1.$2')
   } else if (cpf.length <= 9) {
-    this.value = cpf.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3')
+    this.value = cpf.replace(/^(\d{3})(\d{3})(\d{1,3})$/, '$1.$2.$3')
   } else {
-    this.value = cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4')
+    this.value = cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{1,2})$/, '$1.$2.$3-$4')
   }
 }
 
 function validaCNPJ (cnpj) {
   if (cnpj.length <= 12) {
-    this.value = cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/, '$1.$2.$3/$4');
+    this.value = cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{1,4})$/, '$1.$2.$3/$4');
   } else {
-    this.value = cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, '$1.$2.$3/$4-$5');
+    this.value = cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})$/, '$1.$2.$3/$4-$5');
   }
 }
 
