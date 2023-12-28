@@ -916,9 +916,11 @@ const contraCorrenteVueApp = createApp({
     isEmailValid () {
       const { customerEmailModel, isValidationRunningForField } = this
 
-      if (!isValidationRunningForField('customerEmail')) return true
+      if (isValidationRunningForField('customerEmail')) {
+        return customerEmailModel.includes('@') && customerEmailModel.includes('.')
+      }
 
-      return isValidationRunningForField('customerEmail') && customerEmailModel.includes('@') && customerEmailModel.includes('.')
+      return true
     },
 
     isPhoneNumberValid () {
@@ -934,7 +936,7 @@ const contraCorrenteVueApp = createApp({
 
       if (!isValidationRunningForField('customerCPFCNPJ')) return true
 
-      return (/\d{3}\.\d{3}\d{3}\-\d{2}/.test(customerCPFCNPJModel) || /\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}/.test(customerCPFCNPJModel))
+      return (/\d{3}\.\d{3}\.\d{3}\-\d{2}/.test(customerCPFCNPJModel) || /\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}/.test(customerCPFCNPJModel))
     },
 
     isBirthdateValid () {
