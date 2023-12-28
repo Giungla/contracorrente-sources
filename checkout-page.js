@@ -937,7 +937,7 @@ const contraCorrenteVueApp = createApp({
       const { customerCPFCNPJModel, isValidationRunningForField } = this
 
       if (!isValidationRunningForField('customerCPFCNPJ')) {
-        return (/\d{3}\.\d{3}\.\d{3}\-\d{2}$/.test(customerCPFCNPJModel) && isValidCPF(customerCPFCNPJModel) || /\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}$/.test(customerCPFCNPJModel)) && isValidCNPJ(customerCPFCNPJModel)
+        return (/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/.test(customerCPFCNPJModel) && isValidCPF(customerCPFCNPJModel) || /^\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}$/.test(customerCPFCNPJModel)) && isValidCNPJ(customerCPFCNPJModel)
       }
 
       return true
@@ -1069,6 +1069,18 @@ window.addEventListener('load', function () {
 
     mounted (el) {
       el.addEventListener('input', function () {
+        const cleanValue = this.value.replace(/\D+/g, '');
+
+        if (cleanValue.length <= 11) {
+          validaCPF.call(this, cleanValue);
+
+          return;
+        }
+
+        validaCNPJ.call(this, cleanValue);
+      });
+
+      el.addEventListener('blur', function () {
         const cleanValue = this.value.replace(/\D+/g, '');
 
         if (cleanValue.length <= 11) {
