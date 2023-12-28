@@ -916,13 +916,25 @@ const contraCorrenteVueApp = createApp({
     isEmailValid () {
       const { customerEmailModel, isValidationRunningForField } = this
 
-      return isValidationRunningForField('customerEmail') && customerEmailModel.includes('@') && customerEmailModel.includes('.')
+      return !isValidationRunningForField('customerEmail') && customerEmailModel.includes('@') && customerEmailModel.includes('.')
     },
 
     isPhoneNumberValid () {
       const { customerPhoneModel, isValidationRunningForField } = this
 
-      return isValidationRunningForField('customerPhone') && /\(\d{2}\)\s\d{4,5}\-\d{4}/.test(customerPhoneModel)
+      return !isValidationRunningForField('customerPhone') && /\(\d{2}\)\s\d{4,5}\-\d{4}/.test(customerPhoneModel)
+    },
+
+    isCPFCNPJValid () {
+      const { customerCPFCNPJModel, isValidationRunningForField } = this
+
+      return !isValidationRunningForField('customerCPFCNPJ') && (/\d{3}\.\d{3}\d{3}\-\d{2}/.test(customerCPFCNPJModel) || /\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}/.test(customerCPFCNPJModel))
+    },
+
+    isBirthdateValid () {
+      const { customerBirthdataModel, isValidationRunningForField } = this
+
+      return !isValidationRunningForField('customerBirthdate') && /\d{2}\/\d{2}\/\d{4}/.test(customerBirthdataModel)
     }
   }
 });
