@@ -926,17 +926,21 @@ const contraCorrenteVueApp = createApp({
     isPhoneNumberValid () {
       const { customerPhoneModel, isValidationRunningForField } = this
 
-      if (!isValidationRunningForField('customerPhone')) return true
+      if (isValidationRunningForField('customerPhone')) {
+        return /\(\d{2}\)\d{4,5}\-\d{4}/.test(customerPhoneModel.replace(/\s+/g, ''))
+      }
 
-      return /\(\d{2}\)\s\d{4,5}\-\d{4}/.test(customerPhoneModel)
+      return true
     },
 
     isCPFCNPJValid () {
       const { customerCPFCNPJModel, isValidationRunningForField } = this
 
-      if (!isValidationRunningForField('customerCPFCNPJ')) return true
+      if (!isValidationRunningForField('customerCPFCNPJ')) {
+        return (/\d{3}\.\d{3}\.\d{3}\-\d{2}$/.test(customerCPFCNPJModel) && isValidCPF(customerCPFCNPJModel) || /\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}$/.test(customerCPFCNPJModel)) && isValidCNPJ(customerCPFCNPJModel)
+      }
 
-      return (/\d{3}\.\d{3}\.\d{3}\-\d{2}/.test(customerCPFCNPJModel) || /\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}/.test(customerCPFCNPJModel))
+      return true
     },
 
     isBirthdateValid () {
@@ -948,6 +952,49 @@ const contraCorrenteVueApp = createApp({
     }
   }
 });
+
+function isValidCPF(cpf) {
+  cpf = cpf.toString().padStart(11, '0');
+  if (/^(\d)\1+$/.test(cpf)) return false;
+  var sum = 0;
+  for (var i = 0; i < 9; i++) sum += parseInt(cpf.charAt(i)) * (10 - i);
+  var result = (sum * 10) % 11;
+  if (result === 10 || result === 11) result = 0;
+  if (result !== parseInt(cpf.charAt(9))) return false;
+  sum = 0;
+  for (var i = 0; i < 10; i++) sum += parseInt(cpf.charAt(i)) * (11 - i);
+  result = (sum * 10) % 11;
+  if (result === 10 || result === 11) result = 0;
+  if (result !== parseInt(cpf.charAt(10))) return false;
+  return true;
+}
+
+function isValidCNPJ(cnpj) {
+  cnpj = cnpj.toString().padStart(14, '0');
+  if (/^(\d)\1+$/.test(cnpj)) return false;
+  var length = cnpj.length - 2;
+  var numbers = cnpj.substring(0, length);
+  var digits = cnpj.substring(length);
+  var sum = 0;
+  var pos = length - 7;
+  for (var i = length; i >= 1; i--) {
+      sum += parseInt(numbers.charAt(length - i)) * pos--;
+      if (pos < 2) pos = 9;
+  }
+  var result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  if (result !== parseInt(digits.charAt(0))) return false;
+  length++;
+  numbers = cnpj.substring(0, length);
+  sum = 0;
+  pos = length - 7;
+  for (var i = length; i >= 1; i--) {
+      sum += parseInt(numbers.charAt(length - i)) * pos--;
+      if (pos < 2) pos = 9;
+  }
+  result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  if (result !== parseInt(digits.charAt(1))) return false;
+  return true;
+}
 
 function validateCard (e) {
   const cleanNumber = e.target.value.replace(/\D+/g, '');
