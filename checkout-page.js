@@ -61,6 +61,12 @@ const contraCorrenteVueApp = createApp({
 
     return {
       sProduct,
+
+      customerEmailModel,
+      customerPhoneModel,
+      customerCPFCNPJModel,
+      customerBirthdataModel,
+
       creditCardNumber,
       creditCardName,
       creditCardCode,
