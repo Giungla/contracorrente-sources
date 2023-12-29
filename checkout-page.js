@@ -862,7 +862,14 @@ const contraCorrenteVueApp = createApp({
         installments,
         selectedInstallmentOption,
         senderHash,
+
+        isEmailValid,
+        isCPFCNPJValid,
+        isBirthdateValid,
+        isPhoneNumberValid
       } = this
+
+      const isBasicDataValid = isEmailValid && isCPFCNPJValid && isBirthdateValid && isPhoneNumberValid
 
       const shippingAddressValid = (
         shippingCEP.replace(/\D+/g, '').length === 8 &&
@@ -877,7 +884,7 @@ const contraCorrenteVueApp = createApp({
       const isShippingValid = selectedShipping.length === 5 && getShippingPrice > 0;
 
       if (selectedPayment === 'ticket') {
-        return shippingAddressValid && isShippingValid
+        return shippingAddressValid && isShippingValid && isBasicDataValid
       }
 
       const cardNameHolder = creditCardName.split(' ');
@@ -900,8 +907,8 @@ const contraCorrenteVueApp = createApp({
 
       if (selectedPayment === 'creditcard') {
         return deliveryPlace === 'same'
-          ? billingAddressValid && isShippingValid && isPaymentCardValid && deliveryPlace !== null
-          : shippingAddressValid && billingAddressValid && isShippingValid && isPaymentCardValid && deliveryPlace !== null
+          ? isBasicDataValid&& billingAddressValid && isShippingValid && isPaymentCardValid && deliveryPlace !== null
+          : isBasicDataValid && shippingAddressValid && billingAddressValid && isShippingValid && isPaymentCardValid && deliveryPlace !== null
       }
 
       return false
@@ -936,8 +943,12 @@ const contraCorrenteVueApp = createApp({
     isCPFCNPJValid () {
       const { customerCPFCNPJModel, isValidationRunningForField } = this
 
+      console.log(customerCPFCNPJModel);
+      console.log('pattern valid', /^\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}$/.test(customerCPFCNPJModel));
+      console.log('math valid', CNPJMathValidator(customerCPFCNPJModel));
+
       if (isValidationRunningForField('customerCPFCNPJ')) {
-        return (/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/.test(customerCPFCNPJModel) && isValidCPF(customerCPFCNPJModel) || /^\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}$/.test(customerCPFCNPJModel)) && isValidCNPJ(customerCPFCNPJModel)
+        return ((/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/.test(customerCPFCNPJModel) && CPFMathValidator(customerCPFCNPJModel)) || (/^\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}$/.test(customerCPFCNPJModel)) && CNPJMathValidator(customerCPFCNPJModel))
       }
 
       return true
@@ -946,54 +957,96 @@ const contraCorrenteVueApp = createApp({
     isBirthdateValid () {
       const { customerBirthdataModel, isValidationRunningForField } = this
 
-      if (isValidationRunningForField('customerBirthdate')) return true
+      if (isValidationRunningForField('customerBirthdate')) {
+        return /^\d{2}\/\d{2}\/\d{4}$/.test(customerBirthdataModel) && isDateValid(customerBirthdataModel)
+      }
 
-      return /\d{2}\/\d{2}\/\d{4}/.test(customerBirthdataModel)
+      return true
     }
   }
 });
 
-function isValidCPF(cpf) {
-  cpf = cpf.toString().padStart(11, '0');
-  if (/^(\d)\1+$/.test(cpf)) return false;
-  var sum = 0;
-  for (var i = 0; i < 9; i++) sum += parseInt(cpf.charAt(i)) * (10 - i);
-  var result = (sum * 10) % 11;
-  if (result === 10 || result === 11) result = 0;
-  if (result !== parseInt(cpf.charAt(9))) return false;
-  sum = 0;
-  for (var i = 0; i < 10; i++) sum += parseInt(cpf.charAt(i)) * (11 - i);
-  result = (sum * 10) % 11;
-  if (result === 10 || result === 11) result = 0;
-  if (result !== parseInt(cpf.charAt(10))) return false;
-  return true;
+function CPFMathValidator (cpf) {
+  let Soma = 0
+  let Resto = 0
+
+  let strCPF = String(cpf).replace(/\D+/g, '')
+  
+  if (strCPF.length !== 11) return false
+  
+  if ([
+    '00000000000',
+    '11111111111',
+    '22222222222',
+    '33333333333',
+    '44444444444',
+    '55555555555',
+    '66666666666',
+    '77777777777',
+    '88888888888',
+    '99999999999',
+  ].indexOf(strCPF) !== -1) return false
+
+  for (let i = 1; i <= 9; i++) {
+    Soma = Soma + parseInt(strCPF.substring(i-1, i)) * (11 - i);
+  }
+
+  Resto = (Soma * 10) % 11
+
+  if ((Resto == 10) || (Resto == 11)) Resto = 0
+
+  if (Resto != parseInt(strCPF.substring(9, 10))) return false
+
+  Soma = 0
+
+  for (let i = 1; i <= 10; i++) {
+    Soma = Soma + parseInt(strCPF.substring(i-1, i)) * (12 - i)
+  }
+
+  Resto = (Soma * 10) % 11
+
+  if ((Resto == 10) || (Resto == 11)) Resto = 0
+
+  if (Resto != parseInt(strCPF.substring(10, 11))) return false
+
+  return true
 }
 
-function isValidCNPJ(cnpj) {
-  cnpj = cnpj.toString().padStart(14, '0');
-  if (/^(\d)\1+$/.test(cnpj)) return false;
-  var length = cnpj.length - 2;
-  var numbers = cnpj.substring(0, length);
-  var digits = cnpj.substring(length);
-  var sum = 0;
-  var pos = length - 7;
-  for (var i = length; i >= 1; i--) {
-      sum += parseInt(numbers.charAt(length - i)) * pos--;
-      if (pos < 2) pos = 9;
-  }
-  var result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-  if (result !== parseInt(digits.charAt(0))) return false;
-  length++;
-  numbers = cnpj.substring(0, length);
-  sum = 0;
-  pos = length - 7;
-  for (var i = length; i >= 1; i--) {
-      sum += parseInt(numbers.charAt(length - i)) * pos--;
-      if (pos < 2) pos = 9;
-  }
-  result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-  if (result !== parseInt(digits.charAt(1))) return false;
-  return true;
+
+function CNPJMathValidator (cnpj) {
+  let b = [ 6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2 ]
+
+  let c = String(cnpj).replace(/[^\d]/g, '')
+
+  if (c.length !== 14) return false
+
+  if(/0{14}/.test(c)) return false
+
+  let n = 0
+
+  for (let i = 0; i < 12; n += c[i] * b[++i]);
+
+  if (c[12] !== String(((n %= 11) < 2) ? 0 : 11 - n)) return false
+
+  n = 0
+  
+  for (let i = 0; i <= 12; n += c[i] * b[i++]);
+
+  if (c[13] != String(((n %= 11) < 2) ? 0 : 11 - n)) return false
+
+  return true
+}
+
+function isDateValid (date) {
+  const [
+    day,
+    month,
+    fullYear
+  ] = date.split('/');
+
+  const dateInstace = new Date(`${month}-${day}-${fullYear}`);
+
+  return !isNaN(dateInstace);
 }
 
 function validateCard (e) {
@@ -1045,7 +1098,7 @@ window.addEventListener('load', function () {
   contraCorrenteVueApp.directive('date', {
     twoWay: true,
 
-    mounted (el) {
+    created (el) {
       el.addEventListener('input', function () {
         const cleanDate = this.value.replace(/\D+/g, '');
 
@@ -1067,20 +1120,8 @@ window.addEventListener('load', function () {
   contraCorrenteVueApp.directive('cpf', {
     twoWay: true,
 
-    mounted (el) {
+    created (el) {
       el.addEventListener('input', function () {
-        const cleanValue = this.value.replace(/\D+/g, '');
-
-        if (cleanValue.length <= 11) {
-          validaCPF.call(this, cleanValue);
-
-          return;
-        }
-
-        validaCNPJ.call(this, cleanValue);
-      });
-
-      el.addEventListener('blur', function () {
         const cleanValue = this.value.replace(/\D+/g, '');
 
         if (cleanValue.length <= 11) {
@@ -1097,7 +1138,7 @@ window.addEventListener('load', function () {
   contraCorrenteVueApp.directive('phone', {
     twoWay: true,
 
-    mounted (el) {
+    created (el) {
       el.addEventListener('input', function () {
         const cleanValue = this.value.replace(/\D+/g, '');
 
@@ -1116,7 +1157,7 @@ window.addEventListener('load', function () {
     twoWay: true,
 
     numberOnly: {
-			mounted (el) {
+			created (el) {
 				el.addEventListener('input', numbersOnly);
 			},
 
