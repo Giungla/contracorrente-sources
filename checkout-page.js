@@ -269,6 +269,8 @@ const contraCorrenteVueApp = createApp({
 
     handleblur () {
       this.queryCardBrand(this.creditCardNumber)
+
+      this.runValidations('cardNumber')
     },
 
     handleSelectInstallment (quantity) {
@@ -962,6 +964,49 @@ const contraCorrenteVueApp = createApp({
       }
 
       return true
+    },
+
+    isCardHolder () {
+      const { creditCardName, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('cardHolder')) {
+        return /^(\w{2,})(\s+(\w{2,}))+$/.test(creditCardName)
+      }
+
+      return true
+    },
+
+    isCreditCardNumberValid () {
+      const { creditCardNumber, isValidationRunningForField } = this
+
+      console.log(creditCardNumber);
+      console.log('is credit card valid', /^(\d{4})(\s\d{4}){3}/.test(creditCardNumber));
+
+      if (isValidationRunningForField('cardNumber')) {
+        return /^(\d{4})(\s\d{4}){3}/.test(creditCardNumber)
+      }
+
+      return true
+    },
+
+    isCreditCardExpireDateValid () {
+      const { creditCardDate, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('cardExpireDate')) {
+        return /\d{2}\/\d{2}/.test(creditCardDate) && isExpireDateValid(creditCardDate)
+      }
+
+      return true
+    },
+
+    isCreditCardCVVValid () {
+      const { creditCardCode, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('cardCVV')) {
+        return String(creditCardCode).length === 3 && /^\d{3}$/.test(String(creditCardCode))
+      }
+
+      return true
     }
   }
 });
@@ -1054,7 +1099,10 @@ function validateCard (e) {
 
   const groups = Math.ceil(cleanNumber.length / 4);
 
-  e.target.value = Array
+  console.log(e);
+  console.log(this);
+
+  this.value = Array
     .from({ length: groups })
     .map((_, index) => cleanNumber.substr(index * 4, 4))
     .join(' ');
@@ -1082,16 +1130,38 @@ function numbersOnly (e) {
   e.target.value = e.target.value.replace(/\D+/g, '');
 }
 
+function isValidName (fullname) {
+  const names = fullname.split(' ');
+
+  return names.length > 1 && names.every(name => name.length > 1)
+}
+
+function isExpireDateValid (expireDate) {
+  const tokens = expireDate.split('/')
+
+  if (tokens.length < 2 || tokens.some(token => token.length < 2)) return false
+
+  const [ month, shortYear ] = tokens
+
+  const currentDate = new Date()
+
+  const yearFirst2Digits = currentDate.getFullYear().toString().substring(0, 2)
+
+  const currentDateDay = currentDate.getDay().toString().padStart(2, '0')
+
+  const date = new Date(`${month}-${currentDateDay}-${yearFirst2Digits}${shortYear}`)
+
+  return !isNaN(date) && date.getTime() > currentDate.getTime()
+}
+
 window.addEventListener('load', function () {
   contraCorrenteVueApp.directive('card', {
-    mounted (el) {
-      el.addEventListener('input', validateCard, false);
-      el.addEventListener('blur', validateCard, false);
+    created (el) {
+      el.addEventListener('input', validateCard.bind(el), false);
     },
 
     beforeUnmount (el) {
-      el.removeEventListener('input', validateCard, false);
-      el.removeEventListener('blur', validateCard, false);
+      el.removeEventListener('input', validateCard.bind(el), false);
     }
   });
 
