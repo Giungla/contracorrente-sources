@@ -117,7 +117,8 @@ const contraCorrenteVueApp = createApp({
       isLoading: false,
       errorMessageOrderValidation: null,
 
-      validationFeedback: [],
+      validationFeedback: [
+      ],
 
       shippingTax: 1,
 
@@ -164,7 +165,11 @@ const contraCorrenteVueApp = createApp({
       installments: {},
       selectedInstallmentOption: null,
 
-      xanoProductsAPI: 'https://xef5-44zo-gegm.b2.xano.io/api:RJyl42La/query_products'
+      xanoProductsAPI: 'https://xef5-44zo-gegm.b2.xano.io/api:RJyl42La/query_products',
+
+      statesAcronym: [
+        'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MS', 'MT', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+      ]
     }
   },
 
@@ -1004,6 +1009,86 @@ const contraCorrenteVueApp = createApp({
 
       if (isValidationRunningForField('cardCVV')) {
         return String(creditCardCode).length === 3 && /^\d{3}$/.test(String(creditCardCode))
+      }
+
+      return true
+    },
+
+    isBillingCEPValid () {
+      const { billingCEP, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('billingCEP')) {
+        return /^\d{5}\-\d{3}$/.test(String(billingCEP))
+      }
+
+      return true
+    },
+
+    isBillingAddressValid () {
+      const { billingAddress, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('billingAddress')) {
+        return billingAddress.length > 2
+      }
+
+      return true
+    },
+
+    isBillingNumberValid () {
+      const { billingNumber, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('billingNumber')) {
+        return String(billingNumber).length > 0
+      }
+
+      return true
+    },
+
+    isBillingNeighborhoodValid () {
+      const { billingNeighborhood, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('billingNeighborhood')) {
+        return billingNeighborhood.length > 0
+      }
+
+      return true
+    },
+
+    isBillingCityValid () {
+      const { billingCity, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('billingCity')) {
+        return billingCity.length > 0
+      }
+
+      return true
+    },
+
+    isBillingStateValid () {
+      const { billingState, isValidationRunningForField, statesAcronym } = this
+
+      if (isValidationRunningForField('billingState')) {
+        return statesAcronym.includes(billingState)
+      }
+
+      return true
+    },
+
+    isShippingSenderValid () {
+      const { shippingSender, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('shippingSender')) {
+        return /^(\w{2,})(\s+(\w{2,}))+$/.test(shippingSender)
+      }
+
+      return true
+    },
+
+    isShippingCEPValid () {
+      const { shippingSender, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('shippingSender')) {
+        return /^(\w{2,})(\s+(\w{2,}))+$/.test(shippingSender)
       }
 
       return true
