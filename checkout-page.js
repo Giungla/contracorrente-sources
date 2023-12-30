@@ -1058,7 +1058,7 @@ const contraCorrenteVueApp = createApp({
       const { billingCity, isValidationRunningForField } = this
 
       if (isValidationRunningForField('billingCity')) {
-        return billingCity.length > 0
+        return billingCity.length > 2
       }
 
       return true
@@ -1085,14 +1085,64 @@ const contraCorrenteVueApp = createApp({
     },
 
     isShippingCEPValid () {
-      const { shippingSender, isValidationRunningForField } = this
+      const { shippingCEP, isValidationRunningForField } = this
 
-      if (isValidationRunningForField('shippingSender')) {
-        return /^(\w{2,})(\s+(\w{2,}))+$/.test(shippingSender)
+      if (isValidationRunningForField('shippingCEP')) {
+        return /^\d{5}\-\d{3}$/.test(shippingCEP)
       }
 
       return true
-    }
+    },
+
+    isShippingAddressValid () {
+      const { shippingCEP, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('shippingAddress')) {
+        return /^\d{5}\-\d{3}$/.test(shippingCEP)
+      }
+
+      return true
+    },
+
+    isShippingNumberValid () {
+      const { shippingNumber, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('shippingNumber')) {
+        return String(shippingNumber).length > 0
+      }
+
+      return true
+    },
+
+    isShippingNeighborhoodValid () {
+      const { shippingNeighborhood, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('shippingNeighborhood')) {
+        return shippingNeighborhood.length > 3
+      }
+
+      return true
+    },
+
+    isShippingCityValid () {
+      const { shippingCity, isValidationRunningForField } = this
+
+      if (isValidationRunningForField('shippingCity')) {
+        return shippingCity.length > 2
+      }
+
+      return true
+    },
+
+    isShippingStateValid () {
+      const { shippingState, isValidationRunningForField, statesAcronym } = this
+
+      if (isValidationRunningForField('shippingState')) {
+        return statesAcronym.includes(shippingState)
+      }
+
+      return true
+    },
   }
 });
 
