@@ -1272,7 +1272,7 @@ function isValidName (fullname) {
   return names.length > 1 && names.every(name => name.length > 1)
 }
 
-function isExpireDateValid(expireDate) {
+function isExpireDateValid (expireDate) {
   var tokens = expireDate.split('/');
 
   if (tokens.length < 2 || tokens.some(function (token) { return token.length < 2; })) return false;
@@ -1283,7 +1283,7 @@ function isExpireDateValid(expireDate) {
 
   var yearFirst2Digits = currentDate.getFullYear().toString().substring(0, 2);
 
-  var date = new Date("".concat(month, "-01-").concat(yearFirst2Digits).concat(shortYear));
+  var date = new Date("".concat(yearFirst2Digits).concat(shortYear + ', ').concat(month + ', ', "01"));
 
   return !isNaN(date) && date.getTime() > currentDate.getTime();
 }
