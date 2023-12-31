@@ -998,7 +998,7 @@ const contraCorrenteVueApp = createApp({
       const { creditCardDate, isValidationRunningForField } = this
 
       if (isValidationRunningForField('cardExpireDate')) {
-        return /\d{2}\/\d{2}/.test(creditCardDate) && isExpireDateValid(creditCardDate)
+        return /^\d{2}\/\d{2}$/.test(creditCardDate) && isExpireDateValid(creditCardDate)
       }
 
       return true
@@ -1272,20 +1272,20 @@ function isValidName (fullname) {
   return names.length > 1 && names.every(name => name.length > 1)
 }
 
-function isExpireDateValid (expireDate) {
-  const tokens = expireDate.split('/')
+function isExpireDateValid(expireDate) {
+  var tokens = expireDate.split('/');
 
-  if (tokens.length < 2 || tokens.some(token => token.length < 2)) return false
+  if (tokens.length < 2 || tokens.some(function (token) { return token.length < 2; })) return false;
 
-  const [ month, shortYear ] = tokens
+  var month = tokens[0], shortYear = tokens[1];
 
-  const currentDate = new Date()
+  var currentDate = new Date();
 
-  const yearFirst2Digits = currentDate.getFullYear().toString().substring(0, 2)
+  var yearFirst2Digits = currentDate.getFullYear().toString().substring(0, 2);
 
-  const date = new Date(`${month}-01-${yearFirst2Digits}${shortYear}`)
+  var date = new Date("".concat(month, "-01-").concat(yearFirst2Digits).concat(shortYear));
 
-  return !isNaN(date) && date.getTime() > currentDate.getTime()
+  return !isNaN(date) && date.getTime() > currentDate.getTime();
 }
 
 window.addEventListener('load', function () {
