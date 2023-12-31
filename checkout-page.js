@@ -1229,18 +1229,19 @@ function isDateValid (date) {
   return !isNaN(dateInstace);
 }
 
-function validateCard (e) {
-  const cleanNumber = e.target.value.replace(/\D+/g, '');
+function validateCard (el, binding) {
+  const cleanNumber = el.value.replace(/\D+/g, '');
 
   const groups = Math.ceil(cleanNumber.length / 4);
 
-  console.log(e);
-  console.log(this);
+  console.log(el)
 
-  this.value = Array
+  el.value =  Array
     .from({ length: groups })
     .map((_, index) => cleanNumber.substr(index * 4, 4))
     .join(' ');
+
+  binding.instance.creditCardNumber = el.value
 }
 
 function validaCPF (cpf) {
@@ -1282,21 +1283,19 @@ function isExpireDateValid (expireDate) {
 
   const yearFirst2Digits = currentDate.getFullYear().toString().substring(0, 2)
 
-  const currentDateDay = currentDate.getDay().toString().padStart(2, '0')
-
-  const date = new Date(`${month}-${currentDateDay}-${yearFirst2Digits}${shortYear}`)
+  const date = new Date(`${month}-01-${yearFirst2Digits}${shortYear}`)
 
   return !isNaN(date) && date.getTime() > currentDate.getTime()
 }
 
 window.addEventListener('load', function () {
   contraCorrenteVueApp.directive('card', {
-    created (el) {
-      el.addEventListener('input', validateCard.bind(el), false);
+    created (el, binding) {
+      el.addEventListener('input', () => validateCard(el, binding), false);
     },
 
-    beforeUnmount (el) {
-      el.removeEventListener('input', validateCard.bind(el), false);
+    beforeUnmount (el, binding) {
+      el.removeEventListener('input', () => validateCard(el, binding), false);
     }
   });
 
@@ -1361,15 +1360,13 @@ window.addEventListener('load', function () {
   contraCorrenteVueApp.directive('number-only', {
     twoWay: true,
 
-    numberOnly: {
-			created (el) {
-				el.addEventListener('input', numbersOnly);
-			},
+    created (el) {
+      el.addEventListener('input', numbersOnly);
+    },
 
-			beforeUnmount (el) {
-				el.removeEventListener('input', numbersOnly);
-			}
-		}
+    beforeUnmount (el) {
+      el.removeEventListener('input', numbersOnly);
+    }
   });
 
   contraCorrenteVueApp.mount('#checkout-form-envelope');
