@@ -1283,7 +1283,7 @@ function isExpireDateValid (expireDate) {
 
   var yearFirst2Digits = currentDate.getFullYear().toString().substring(0, 2);
 
-  var date = new Date("".concat(yearFirst2Digits).concat(shortYear + ', ').concat(month + ', ', "01"));
+  var date = new Date("".concat(yearFirst2Digits).concat(shortYear + '-').concat(month + '-', "01").concat('T00:00:00'));
 
   return !isNaN(date) && date.getTime() > currentDate.getTime();
 }
