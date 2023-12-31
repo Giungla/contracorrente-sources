@@ -1224,7 +1224,7 @@ function isDateValid (date) {
     fullYear
   ] = date.split('/');
 
-  const dateInstace = new Date(`${month}-${day}-${fullYear}`);
+  const dateInstace = new Date(`${fullYear}-${month}-${day}T00:00:00`);
 
   return !isNaN(dateInstace);
 }
