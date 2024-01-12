@@ -59,6 +59,10 @@ const contraCorrenteVueApp = createApp({
     const shippingCity = ref('')
     const shippingState = ref('')
 
+    const cupomCode = ref('')
+    const cupomData = ref({})
+    const coupomSuccessMessage = ref('')
+
     return {
       sProduct,
 
@@ -109,6 +113,10 @@ const contraCorrenteVueApp = createApp({
       shippingNeighborhood,
       shippingCity,
       shippingState,
+
+      cupomCode,
+      cupomData,
+      coupomSuccessMessage
     }
   },
 
@@ -654,9 +662,7 @@ const contraCorrenteVueApp = createApp({
 
           getInstallments(response.brand.name)
         },
-        error: (response) => {
-          console.log(response)
-        }
+        error: (response) => {}
       });
     },
 
@@ -697,6 +703,8 @@ const contraCorrenteVueApp = createApp({
       await this.queryShippingPrice()
 
       this.queryCardBrand(this.creditCardNumber)
+
+      this.coupomSuccessMessage = ''
     },
 
     pluralize ({ count, one, many }) {
@@ -715,6 +723,47 @@ const contraCorrenteVueApp = createApp({
     handleDeliveryPlace (token) {
       this.deliveryPlace = token
     },
+
+    async queryCupom () {
+      const { cupomCode } = this
+
+      const response = await fetch(`https://xef5-44zo-gegm.b2.xano.io/api:0FEmfXD_/coupon?coupon_code=${cupomCode.toUpperCase()}`)
+
+      if (!response.ok) {
+        this.handleRemoveCoupon()
+
+        this.cupomData = {
+          error: true
+        }
+
+        return
+      }
+
+      const data = await response.json()
+
+      if (!data.is_active) {
+        this.handleRemoveCoupon()
+
+        this.cupomData = {
+          error: true
+        }
+
+        return
+      }
+
+      this.cupomData = data
+
+      if (data.cupom_type === 'shipping' && this.selectedShipping.length === 0) {
+        this.coupomSuccessMessage = 'Cupom aplicado com sucesso! Para visualizar o desconto, defina o método de envio.'
+      } else {
+        this.coupomSuccessMessage = 'Cupom de desconto aplicado com sucesso!'
+      }
+    },
+
+    handleRemoveCoupon () {
+      this.cupomCode = ''
+      this.cupomData = {}
+    }
   },
 
   computed: {
@@ -763,7 +812,7 @@ const contraCorrenteVueApp = createApp({
     },
 
     getShippingPrice () {
-      const { hasShippingDetails, selectedShipping, shippingDetails } = this
+      const { hasShippingDetails, selectedShipping, shippingDetails, cupomData, getProductsSubtotal } = this
 
       if (!hasShippingDetails) return 0
 
@@ -787,9 +836,9 @@ const contraCorrenteVueApp = createApp({
     },
 
     totalOrder () {
-      const { getProductsSubtotal, getShippingPrice } = this
+      const { getProductsSubtotal, getShippingPrice, discount } = this
 
-      return STRING_2_BRL_CURRENCY(getProductsSubtotal + getShippingPrice)
+      return STRING_2_BRL_CURRENCY(getProductsSubtotal + getShippingPrice - (discount * -1))
     },
 
     deliveryOptions () {
@@ -950,10 +999,6 @@ const contraCorrenteVueApp = createApp({
     isCPFCNPJValid () {
       const { customerCPFCNPJModel, isValidationRunningForField } = this
 
-      console.log(customerCPFCNPJModel);
-      console.log('pattern valid', /^\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}$/.test(customerCPFCNPJModel));
-      console.log('math valid', CNPJMathValidator(customerCPFCNPJModel));
-
       if (isValidationRunningForField('customerCPFCNPJ')) {
         return ((/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/.test(customerCPFCNPJModel) && CPFMathValidator(customerCPFCNPJModel)) || (/^\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}$/.test(customerCPFCNPJModel)) && CNPJMathValidator(customerCPFCNPJModel))
       }
@@ -983,9 +1028,6 @@ const contraCorrenteVueApp = createApp({
 
     isCreditCardNumberValid () {
       const { creditCardNumber, isValidationRunningForField } = this
-
-      console.log(creditCardNumber);
-      console.log('is credit card valid', /^(\d{4})(\s\d{4}){3}/.test(creditCardNumber));
 
       if (isValidationRunningForField('cardNumber')) {
         return /^(\d{4})(\s\d{4}){3}/.test(creditCardNumber)
@@ -1143,6 +1185,49 @@ const contraCorrenteVueApp = createApp({
 
       return true
     },
+
+    hasAppliedCoupon () {
+      const { cupomData, invalidCoupon } = this
+
+      return !invalidCoupon && Object.keys(cupomData ?? {}).length > 0
+    },
+
+    cupomHasUnsufficientDigits () {
+      const { cupomCode } = this
+
+      return cupomCode.length < 5
+    },
+
+    invalidCoupon () {
+      const { cupomData } = this
+
+      return cupomData.hasOwnProperty('error')
+    },
+
+    discount () {
+      const { getShippingPrice, getProductsSubtotal } = this
+
+      const { is_percentage, min_purchase, products_id, value, cupom_type } = this.cupomData
+
+      const isGreaterThanMinPurchaseValue = getProductsSubtotal > min_purchase
+
+      switch (cupom_type) {
+        case 'shipping':
+          if (!isGreaterThanMinPurchaseValue) return 0
+
+          return is_percentage
+            ? getShippingPrice - discountPercentage(getShippingPrice, -value)
+            : getShippingPrice - discountReal(getShippingPrice, value)
+        default:
+          return 0
+      }
+    },
+
+    BRLDiscount () {
+      const { discount } = this
+
+      return STRING_2_BRL_CURRENCY(discount)
+    }
   }
 });
 
@@ -1234,8 +1319,6 @@ function validateCard (el, binding) {
 
   const groups = Math.ceil(cleanNumber.length / 4);
 
-  console.log(el)
-
   el.value =  Array
     .from({ length: groups })
     .map((_, index) => cleanNumber.substr(index * 4, 4))
@@ -1286,6 +1369,14 @@ function isExpireDateValid (expireDate) {
   var date = new Date("".concat(yearFirst2Digits).concat(shortYear + '-').concat(month + '-', "01").concat('T00:00:00'));
 
   return !isNaN(date) && date.getTime() > currentDate.getTime();
+}
+
+function discountPercentage (value, discount) {
+  return value * (1 - discount / 100)
+}
+
+function discountReal (value, discount) {
+  return value - discount
 }
 
 window.addEventListener('load', function () {
@@ -1366,6 +1457,16 @@ window.addEventListener('load', function () {
 
     beforeUnmount (el) {
       el.removeEventListener('input', numbersOnly);
+    }
+  });
+
+  contraCorrenteVueApp.directive('upper', {
+    twoWay: true,
+
+    created (el) {
+      el.addEventListener('input', function (e) {
+        this.value = this.value?.toUpperCase() ?? ''
+      });
     }
   });
 
