@@ -61,6 +61,7 @@ const contraCorrenteVueApp = createApp({
 
     const cupomCode = ref('')
     const cupomData = ref({})
+    const coupomErrorMessage = ref('')
     const coupomSuccessMessage = ref('')
 
     return {
@@ -736,6 +737,8 @@ const contraCorrenteVueApp = createApp({
           error: true
         }
 
+        this.coupomErrorMessage = 'O cupom informado é inválido!'
+
         return
       }
 
@@ -751,13 +754,23 @@ const contraCorrenteVueApp = createApp({
         return
       }
 
-      this.cupomData = data
+      if (data.min_purchase > this.getProductsSubtotal) {
+        this.cupomData = {
+          error: true
+        }
+
+        this.coupomErrorMessage = 'Cupom requer valor mínimo de '.concat(STRING_2_BRL_CURRENCY(data.min_purchase))
+
+        return
+      }
 
       if (data.cupom_type === 'shipping' && this.selectedShipping.length === 0) {
         this.coupomSuccessMessage = 'Cupom aplicado com sucesso! Para visualizar o desconto, defina o método de envio.'
       } else {
         this.coupomSuccessMessage = 'Cupom de desconto aplicado com sucesso!'
       }
+
+      this.cupomData = data
     },
 
     handleRemoveCoupon () {
@@ -1217,7 +1230,7 @@ const contraCorrenteVueApp = createApp({
 
           return is_percentage
             ? getShippingPrice - discountPercentage(getShippingPrice, -value)
-            : getShippingPrice - discountReal(getShippingPrice, value)
+            : discountReal(getShippingPrice, value)
         default:
           return 0
       }
@@ -1376,7 +1389,7 @@ function discountPercentage (value, discount) {
 }
 
 function discountReal (value, discount) {
-  return value - discount
+  return Math.abs(discount <= value ? discount : value) * -1
 }
 
 window.addEventListener('load', function () {
