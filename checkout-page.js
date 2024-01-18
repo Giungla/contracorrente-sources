@@ -7,12 +7,12 @@ const {
 } = Vue;
 
 const contraCorrenteVueApp = createApp({
-  setup () {
+  setup() {
     const sProduct = ref([])
 
-    const customerEmailModel     = ref('')
-    const customerPhoneModel     = ref('')
-    const customerCPFCNPJModel   = ref('')
+    const customerEmailModel = ref('')
+    const customerPhoneModel = ref('')
+    const customerCPFCNPJModel = ref('')
     const customerBirthdataModel = ref('')
 
     const creditCardNumber = ref('')
@@ -121,7 +121,7 @@ const contraCorrenteVueApp = createApp({
     }
   },
 
-  data () {
+  data() {
     return {
       isLoading: false,
       errorMessageOrderValidation: null,
@@ -182,7 +182,7 @@ const contraCorrenteVueApp = createApp({
     }
   },
 
-  async mounted () {
+  async mounted() {
     this.getProductsElements()
 
     await this.queryProducts()
@@ -205,7 +205,7 @@ const contraCorrenteVueApp = createApp({
   },
 
   watch: {
-    async shippingCEP (cep, oldCEP) {
+    async shippingCEP(cep, oldCEP) {
       const cleanCEP = cep.replace(/\D+/g, '');
 
       if (cleanCEP.length < 8 || cleanCEP === oldCEP) return;
@@ -234,7 +234,7 @@ const contraCorrenteVueApp = createApp({
       this.queryShippingPrice()
     },
 
-    async billingCEP (cep, oldCEP) {
+    async billingCEP(cep, oldCEP) {
       const cleanCEP = cep.replace(/\D+/g, '');
 
       if (cleanCEP.length < 8 || cleanCEP === oldCEP) return;
@@ -265,7 +265,7 @@ const contraCorrenteVueApp = createApp({
       }
     },
 
-    creditCardDate (date, oldDate) {
+    creditCardDate(date, oldDate) {
       const cleanDate = date.replace(/\D+/g, '');
 
       if (cleanDate.length < 3 || date === oldDate) return;
@@ -275,23 +275,23 @@ const contraCorrenteVueApp = createApp({
   },
 
   methods: {
-    runValidations (fieldname) {
+    runValidations(fieldname) {
       if (this.validationFeedback.includes(fieldname)) return
 
       this.validationFeedback.push(fieldname)
     },
 
-    handleblur () {
+    handleblur() {
       this.queryCardBrand(this.creditCardNumber)
 
       this.runValidations('cardNumber')
     },
 
-    handleSelectInstallment (quantity) {
+    handleSelectInstallment(quantity) {
       this.selectedInstallmentOption = quantity
     },
 
-    getInstallments (creditCardBrandName) {
+    getInstallments(creditCardBrandName) {
       const { getProductsSubtotal, getShippingPrice } = this
 
       PagSeguroDirectPayment.getInstallments({
@@ -307,7 +307,7 @@ const contraCorrenteVueApp = createApp({
       });
     },
 
-    getProductsElements () {
+    getProductsElements() {
       const nodelist = document.querySelectorAll('[data-ref="sProduct"]')
 
       this.sProduct = Array.from({ length: nodelist.length }, (_, index) => {
@@ -321,13 +321,13 @@ const contraCorrenteVueApp = createApp({
       })
     },
 
-    getSlugFromProductElement (productNode) {
+    getSlugFromProductElement(productNode) {
       const anchorElement = productNode.element.querySelector('[data-slug="true"]')
 
       return anchorElement.href.split('/').at(-1)
     },
 
-    async queryProducts () {
+    async queryProducts() {
       const {
         xanoProductsAPI,
         getProductsSlugs
@@ -350,7 +350,7 @@ const contraCorrenteVueApp = createApp({
       this.productsResponse = await response.json()
     },
 
-    async queryShippingPrice () {
+    async queryShippingPrice() {
       const { productsResponse, sProduct } = this
 
       if (productsResponse.length === 0 || !hasCEPStoraged()) return null
@@ -403,7 +403,7 @@ const contraCorrenteVueApp = createApp({
       this.shippingDetails = data
     },
 
-    async querySessionID () {
+    async querySessionID() {
       const { createSessionID } = this
 
       const response = await fetch(`https://xef5-44zo-gegm.b2.xano.io/api:0FEmfXD_/api_payment_session_id`)
@@ -420,7 +420,7 @@ const contraCorrenteVueApp = createApp({
       })
     },
 
-    querySenderHash () {
+    querySenderHash() {
       const senderHashValue = PagSeguroDirectPayment.getSenderHash();
 
       if (senderHashValue == null || senderHashValue == '') {
@@ -432,7 +432,7 @@ const contraCorrenteVueApp = createApp({
       }
     },
 
-    async handleProcessPayment (e) {
+    async handleProcessPayment(e) {
       e.preventDefault()
 
       if (this.isLoading === true) return;
@@ -454,9 +454,12 @@ const contraCorrenteVueApp = createApp({
       this.isLoading = false
     },
 
-    async postPayment () {
+    // envio de pagamento via boleto
+    async postPayment() {
       const {
         sProduct,
+        discount,
+        cupomData,
         selectedShipping,
         customerMail,
         customerPhone,
@@ -502,7 +505,7 @@ const contraCorrenteVueApp = createApp({
           billing_city: customerShippingCity.value,
           billing_state: customerShippingState.value,
 
-          amount: +(getProductsSubtotal + getShippingPrice).toFixed(2),
+          amount: +(getProductsSubtotal + getShippingPrice + discount).toFixed(2),
           sender_hash: senderHash,
 
           products: sProduct.map(({ quantity, slug }) => ({
@@ -510,7 +513,11 @@ const contraCorrenteVueApp = createApp({
           })),
 
           shippingMethod: selectedShipping,
-          shippingPrice: parseFloat(getShippingPrice.toFixed(2))
+          shippingPrice: parseFloat(getShippingPrice.toFixed(2)),
+
+          ...(Object.keys(cupomData).includes('code') && {
+            discount_code: cupomData.code
+          })
         })
       })
 
@@ -529,7 +536,8 @@ const contraCorrenteVueApp = createApp({
       }, 1000);
     },
 
-    async postCreditCardPayment () {
+    // envio de pagamento via cartão
+    async postCreditCardPayment() {
       const {
         sProduct,
 
@@ -625,9 +633,9 @@ const contraCorrenteVueApp = createApp({
       }, 1000);
     },
 
-    async searchAddress () {},
+    async searchAddress() { },
 
-    parseDifferentAddresses () {
+    parseDifferentAddresses() {
       const {
         customerShippingCEP,
         customerShippingAddress,
@@ -649,7 +657,7 @@ const contraCorrenteVueApp = createApp({
       }
     },
 
-    queryCardBrand (creditCardNumber) {
+    queryCardBrand(creditCardNumber) {
       const { getInstallments } = this
 
       if (!creditCardNumber || creditCardNumber?.length <= 7) return
@@ -663,11 +671,11 @@ const contraCorrenteVueApp = createApp({
 
           getInstallments(response.brand.name)
         },
-        error: (response) => {}
+        error: (response) => { }
       });
     },
 
-    queryCreditCardNumber ({ creditCardNumber, creditCardCode, creditCardDate }) {
+    queryCreditCardNumber({ creditCardNumber, creditCardCode, creditCardDate }) {
       const parsedCreditCardDate = String(creditCardDate).replace(/\D+/g, '')
       const parsedCreditCardCode = String(creditCardCode).replace(/\D+/g, '')
       const parsedCreditCardNumber = String(creditCardNumber).replace(/\D+/g, '')
@@ -690,11 +698,11 @@ const contraCorrenteVueApp = createApp({
       })
     },
 
-    createSessionID ({ key, value }) {
+    createSessionID({ key, value }) {
       sessionStorage.setItem(key, value)
     },
 
-    async handleShippingType (shippingCode, evt) {
+    async handleShippingType(shippingCode, evt) {
       if (this.selectedShipping === shippingCode) return
 
       this.selectedShipping = shippingCode
@@ -708,24 +716,24 @@ const contraCorrenteVueApp = createApp({
       this.coupomSuccessMessage = ''
     },
 
-    pluralize ({ count, one, many }) {
+    pluralize({ count, one, many }) {
       return count > 1
         ? many
         : one
     },
 
-    handleChangePaymentMethod (method) {
+    handleChangePaymentMethod(method) {
       if (this.selectedPayment === method) return
 
       this.selectedPayment = method
       this.deliveryPlace = null
     },
 
-    handleDeliveryPlace (token) {
+    handleDeliveryPlace(token) {
       this.deliveryPlace = token
     },
 
-    async queryCupom () {
+    async queryCupom() {
       const { cupomCode } = this
 
       const response = await fetch(`https://xef5-44zo-gegm.b2.xano.io/api:0FEmfXD_/coupon?coupon_code=${cupomCode.toUpperCase()}`)
@@ -773,14 +781,14 @@ const contraCorrenteVueApp = createApp({
       this.cupomData = data
     },
 
-    handleRemoveCoupon () {
+    handleRemoveCoupon() {
       this.cupomCode = ''
       this.cupomData = {}
     }
   },
 
   computed: {
-    listInstallments () {
+    listInstallments() {
       const { installments, brandName } = this
 
       if (installments?.installments?.error || !Object.keys(installments?.installments ?? {}).length) return []
@@ -794,19 +802,19 @@ const contraCorrenteVueApp = createApp({
       })
     },
 
-    displayFinalShippingPrice () {
+    displayFinalShippingPrice() {
       const { hasShippingDetails, selectedShipping } = this
 
       return hasShippingDetails && selectedShipping.length > 0
     },
 
-    hasShippingDetails () {
+    hasShippingDetails() {
       const { shippingDetails } = this
 
       return Object.keys(shippingDetails ?? {}).length > 0
     },
 
-    getProductsSlugs () {
+    getProductsSlugs() {
       const { sProduct, getSlugFromProductElement } = this
 
       return sProduct.length > 0
@@ -814,7 +822,7 @@ const contraCorrenteVueApp = createApp({
         : []
     },
 
-    getProductsSubtotal () {
+    getProductsSubtotal() {
       const { productsResponse, sProduct } = this
 
       return productsResponse.reduce((price, product) => {
@@ -824,7 +832,7 @@ const contraCorrenteVueApp = createApp({
       }, 0)
     },
 
-    getShippingPrice () {
+    getShippingPrice() {
       const { hasShippingDetails, selectedShipping, shippingDetails, cupomData, getProductsSubtotal } = this
 
       if (!hasShippingDetails) return 0
@@ -836,31 +844,31 @@ const contraCorrenteVueApp = createApp({
       return parseFloat((selectedShippingPrice?.pcFinal).replace(/\,+/g, '.')) * this.shippingTax
     },
 
-    shippingPrice () {
+    shippingPrice() {
       const { getShippingPrice } = this
 
       return STRING_2_BRL_CURRENCY(getShippingPrice)
     },
 
-    subtotal () {
+    subtotal() {
       const { getProductsSubtotal } = this
 
       return STRING_2_BRL_CURRENCY(getProductsSubtotal)
     },
 
-    totalOrder () {
+    totalOrder() {
       const { getProductsSubtotal, getShippingPrice, discount } = this
 
       return STRING_2_BRL_CURRENCY(getProductsSubtotal + getShippingPrice - (discount * -1))
     },
 
-    deliveryOptions () {
+    deliveryOptions() {
       const { shippingDetails, hasShippingDetails, productsCorreios, pluralize } = this
 
       if (!hasShippingDetails) {
         return Object
           .entries(productsCorreios)
-          .reduce((fakeOptions, [ key, value ]) => {
+          .reduce((fakeOptions, [key, value]) => {
             return fakeOptions.concat({
               code: key,
               option: value,
@@ -894,13 +902,13 @@ const contraCorrenteVueApp = createApp({
       })
     },
 
-    hasDeliveryData () {
+    hasDeliveryData() {
       const { selectedPayment, deliveryPlace } = this
 
       return selectedPayment === null || ['ticket', 'pix'].includes(selectedPayment) || (selectedPayment === 'creditcard' && deliveryPlace === 'diff')
     },
 
-    validationRules () {
+    validationRules() {
       const {
         deliveryPlace,
         selectedPayment,
@@ -976,20 +984,20 @@ const contraCorrenteVueApp = createApp({
 
       if (selectedPayment === 'creditcard') {
         return deliveryPlace === 'same'
-          ? isBasicDataValid&& billingAddressValid && isShippingValid && isPaymentCardValid && deliveryPlace !== null
+          ? isBasicDataValid && billingAddressValid && isShippingValid && isPaymentCardValid && deliveryPlace !== null
           : isBasicDataValid && shippingAddressValid && billingAddressValid && isShippingValid && isPaymentCardValid && deliveryPlace !== null
       }
 
       return false
     },
 
-    isValidationRunningForField () {
+    isValidationRunningForField() {
       const { validationFeedback } = this
 
       return (fieldname) => validationFeedback.includes(fieldname)
     },
 
-    isEmailValid () {
+    isEmailValid() {
       const { customerEmailModel, isValidationRunningForField } = this
 
       if (isValidationRunningForField('customerEmail')) {
@@ -999,7 +1007,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isPhoneNumberValid () {
+    isPhoneNumberValid() {
       const { customerPhoneModel, isValidationRunningForField } = this
 
       if (isValidationRunningForField('customerPhone')) {
@@ -1009,7 +1017,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isCPFCNPJValid () {
+    isCPFCNPJValid() {
       const { customerCPFCNPJModel, isValidationRunningForField } = this
 
       if (isValidationRunningForField('customerCPFCNPJ')) {
@@ -1019,7 +1027,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isBirthdateValid () {
+    isBirthdateValid() {
       const { customerBirthdataModel, isValidationRunningForField } = this
 
       if (isValidationRunningForField('customerBirthdate')) {
@@ -1029,7 +1037,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isCardHolder () {
+    isCardHolder() {
       const { creditCardName, isValidationRunningForField } = this
 
       if (isValidationRunningForField('cardHolder')) {
@@ -1039,7 +1047,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isCreditCardNumberValid () {
+    isCreditCardNumberValid() {
       const { creditCardNumber, isValidationRunningForField } = this
 
       if (isValidationRunningForField('cardNumber')) {
@@ -1049,7 +1057,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isCreditCardExpireDateValid () {
+    isCreditCardExpireDateValid() {
       const { creditCardDate, isValidationRunningForField } = this
 
       if (isValidationRunningForField('cardExpireDate')) {
@@ -1059,7 +1067,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isCreditCardCVVValid () {
+    isCreditCardCVVValid() {
       const { creditCardCode, isValidationRunningForField } = this
 
       if (isValidationRunningForField('cardCVV')) {
@@ -1069,7 +1077,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isBillingCEPValid () {
+    isBillingCEPValid() {
       const { billingCEP, isValidationRunningForField } = this
 
       if (isValidationRunningForField('billingCEP')) {
@@ -1079,7 +1087,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isBillingAddressValid () {
+    isBillingAddressValid() {
       const { billingAddress, isValidationRunningForField } = this
 
       if (isValidationRunningForField('billingAddress')) {
@@ -1089,7 +1097,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isBillingNumberValid () {
+    isBillingNumberValid() {
       const { billingNumber, isValidationRunningForField } = this
 
       if (isValidationRunningForField('billingNumber')) {
@@ -1099,7 +1107,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isBillingNeighborhoodValid () {
+    isBillingNeighborhoodValid() {
       const { billingNeighborhood, isValidationRunningForField } = this
 
       if (isValidationRunningForField('billingNeighborhood')) {
@@ -1109,7 +1117,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isBillingCityValid () {
+    isBillingCityValid() {
       const { billingCity, isValidationRunningForField } = this
 
       if (isValidationRunningForField('billingCity')) {
@@ -1119,7 +1127,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isBillingStateValid () {
+    isBillingStateValid() {
       const { billingState, isValidationRunningForField, statesAcronym } = this
 
       if (isValidationRunningForField('billingState')) {
@@ -1129,7 +1137,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isShippingSenderValid () {
+    isShippingSenderValid() {
       const { shippingSender, isValidationRunningForField } = this
 
       if (isValidationRunningForField('shippingSender')) {
@@ -1139,7 +1147,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isShippingCEPValid () {
+    isShippingCEPValid() {
       const { shippingCEP, isValidationRunningForField } = this
 
       if (isValidationRunningForField('shippingCEP')) {
@@ -1149,7 +1157,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isShippingAddressValid () {
+    isShippingAddressValid() {
       const { shippingCEP, isValidationRunningForField } = this
 
       if (isValidationRunningForField('shippingAddress')) {
@@ -1159,7 +1167,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isShippingNumberValid () {
+    isShippingNumberValid() {
       const { shippingNumber, isValidationRunningForField } = this
 
       if (isValidationRunningForField('shippingNumber')) {
@@ -1169,7 +1177,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isShippingNeighborhoodValid () {
+    isShippingNeighborhoodValid() {
       const { shippingNeighborhood, isValidationRunningForField } = this
 
       if (isValidationRunningForField('shippingNeighborhood')) {
@@ -1179,7 +1187,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isShippingCityValid () {
+    isShippingCityValid() {
       const { shippingCity, isValidationRunningForField } = this
 
       if (isValidationRunningForField('shippingCity')) {
@@ -1189,7 +1197,7 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    isShippingStateValid () {
+    isShippingStateValid() {
       const { shippingState, isValidationRunningForField, statesAcronym } = this
 
       if (isValidationRunningForField('shippingState')) {
@@ -1199,44 +1207,53 @@ const contraCorrenteVueApp = createApp({
       return true
     },
 
-    hasAppliedCoupon () {
+    hasAppliedCoupon() {
       const { cupomData, invalidCoupon } = this
 
       return !invalidCoupon && Object.keys(cupomData ?? {}).length > 0
     },
 
-    cupomHasUnsufficientDigits () {
+    cupomHasUnsufficientDigits() {
       const { cupomCode } = this
 
       return cupomCode.length < 5
     },
 
-    invalidCoupon () {
+    invalidCoupon() {
       const { cupomData } = this
 
       return cupomData.hasOwnProperty('error')
     },
 
-    discount () {
-      const { getShippingPrice, getProductsSubtotal } = this
+    discount() {
+      const {
+        getShippingPrice,
+        getProductsSubtotal
+      } = this
 
       const { is_percentage, min_purchase, products_id, value, cupom_type } = this.cupomData
 
       const isGreaterThanMinPurchaseValue = getProductsSubtotal > min_purchase
 
+      if (!isGreaterThanMinPurchaseValue) return 0
+
       switch (cupom_type) {
         case 'shipping':
-          if (!isGreaterThanMinPurchaseValue) return 0
-
           return is_percentage
             ? getShippingPrice - discountPercentage(getShippingPrice, -value)
             : discountReal(getShippingPrice, value)
+        case 'subtotal':
+          return is_percentage
+            ? getProductsSubtotal - discountPercentage(getProductsSubtotal, -value)
+            : discountReal(getProductsSubtotal, value)
+        case 'isbn':
+          return 0
         default:
           return 0
       }
     },
 
-    BRLDiscount () {
+    BRLDiscount() {
       const { discount } = this
 
       return STRING_2_BRL_CURRENCY(discount)
@@ -1244,14 +1261,14 @@ const contraCorrenteVueApp = createApp({
   }
 });
 
-function CPFMathValidator (cpf) {
+function CPFMathValidator(cpf) {
   let Soma = 0
   let Resto = 0
 
   let strCPF = String(cpf).replace(/\D+/g, '')
-  
+
   if (strCPF.length !== 11) return false
-  
+
   if ([
     '00000000000',
     '11111111111',
@@ -1266,7 +1283,7 @@ function CPFMathValidator (cpf) {
   ].indexOf(strCPF) !== -1) return false
 
   for (let i = 1; i <= 9; i++) {
-    Soma = Soma + parseInt(strCPF.substring(i-1, i)) * (11 - i);
+    Soma = Soma + parseInt(strCPF.substring(i - 1, i)) * (11 - i);
   }
 
   Resto = (Soma * 10) % 11
@@ -1278,7 +1295,7 @@ function CPFMathValidator (cpf) {
   Soma = 0
 
   for (let i = 1; i <= 10; i++) {
-    Soma = Soma + parseInt(strCPF.substring(i-1, i)) * (12 - i)
+    Soma = Soma + parseInt(strCPF.substring(i - 1, i)) * (12 - i)
   }
 
   Resto = (Soma * 10) % 11
@@ -1291,14 +1308,14 @@ function CPFMathValidator (cpf) {
 }
 
 
-function CNPJMathValidator (cnpj) {
-  let b = [ 6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2 ]
+function CNPJMathValidator(cnpj) {
+  let b = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
 
   let c = String(cnpj).replace(/[^\d]/g, '')
 
   if (c.length !== 14) return false
 
-  if(/0{14}/.test(c)) return false
+  if (/0{14}/.test(c)) return false
 
   let n = 0
 
@@ -1307,7 +1324,7 @@ function CNPJMathValidator (cnpj) {
   if (c[12] !== String(((n %= 11) < 2) ? 0 : 11 - n)) return false
 
   n = 0
-  
+
   for (let i = 0; i <= 12; n += c[i] * b[i++]);
 
   if (c[13] != String(((n %= 11) < 2) ? 0 : 11 - n)) return false
@@ -1315,7 +1332,7 @@ function CNPJMathValidator (cnpj) {
   return true
 }
 
-function isDateValid (date) {
+function isDateValid(date) {
   const [
     day,
     month,
@@ -1327,12 +1344,12 @@ function isDateValid (date) {
   return !isNaN(dateInstace);
 }
 
-function validateCard (el, binding) {
+function validateCard(el, binding) {
   const cleanNumber = el.value.replace(/\D+/g, '');
 
   const groups = Math.ceil(cleanNumber.length / 4);
 
-  el.value =  Array
+  el.value = Array
     .from({ length: groups })
     .map((_, index) => cleanNumber.substr(index * 4, 4))
     .join(' ');
@@ -1340,7 +1357,7 @@ function validateCard (el, binding) {
   binding.instance.creditCardNumber = el.value
 }
 
-function validaCPF (cpf) {
+function validaCPF(cpf) {
   if (cpf.length <= 6) {
     this.value = cpf.replace(/^(\d{3})(\d{1,3})/, '$1.$2')
   } else if (cpf.length <= 9) {
@@ -1350,7 +1367,7 @@ function validaCPF (cpf) {
   }
 }
 
-function validaCNPJ (cnpj) {
+function validaCNPJ(cnpj) {
   if (cnpj.length <= 12) {
     this.value = cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{1,4})$/, '$1.$2.$3/$4');
   } else {
@@ -1358,17 +1375,17 @@ function validaCNPJ (cnpj) {
   }
 }
 
-function numbersOnly (e) {
+function numbersOnly(e) {
   e.target.value = e.target.value.replace(/\D+/g, '');
 }
 
-function isValidName (fullname) {
+function isValidName(fullname) {
   const names = fullname.split(' ');
 
   return names.length > 1 && names.every(name => name.length > 1)
 }
 
-function isExpireDateValid (expireDate) {
+function isExpireDateValid(expireDate) {
   var tokens = expireDate.split('/');
 
   if (tokens.length < 2 || tokens.some(function (token) { return token.length < 2; })) return false;
@@ -1384,21 +1401,21 @@ function isExpireDateValid (expireDate) {
   return !isNaN(date) && date.getTime() > currentDate.getTime();
 }
 
-function discountPercentage (value, discount) {
+function discountPercentage(value, discount) {
   return value * (1 - discount / 100)
 }
 
-function discountReal (value, discount) {
+function discountReal(value, discount) {
   return Math.abs(discount <= value ? discount : value) * -1
 }
 
 window.addEventListener('load', function () {
   contraCorrenteVueApp.directive('card', {
-    created (el, binding) {
+    created(el, binding) {
       el.addEventListener('input', () => validateCard(el, binding), false);
     },
 
-    beforeUnmount (el, binding) {
+    beforeUnmount(el, binding) {
       el.removeEventListener('input', () => validateCard(el, binding), false);
     }
   });
@@ -1406,7 +1423,7 @@ window.addEventListener('load', function () {
   contraCorrenteVueApp.directive('date', {
     twoWay: true,
 
-    created (el) {
+    created(el) {
       el.addEventListener('input', function () {
         const cleanDate = this.value.replace(/\D+/g, '');
 
@@ -1428,7 +1445,7 @@ window.addEventListener('load', function () {
   contraCorrenteVueApp.directive('cpf', {
     twoWay: true,
 
-    created (el) {
+    created(el) {
       el.addEventListener('input', function () {
         const cleanValue = this.value.replace(/\D+/g, '');
 
@@ -1446,7 +1463,7 @@ window.addEventListener('load', function () {
   contraCorrenteVueApp.directive('phone', {
     twoWay: true,
 
-    created (el) {
+    created(el) {
       el.addEventListener('input', function () {
         const cleanValue = this.value.replace(/\D+/g, '');
 
@@ -1464,11 +1481,11 @@ window.addEventListener('load', function () {
   contraCorrenteVueApp.directive('number-only', {
     twoWay: true,
 
-    created (el) {
+    created(el) {
       el.addEventListener('input', numbersOnly);
     },
 
-    beforeUnmount (el) {
+    beforeUnmount(el) {
       el.removeEventListener('input', numbersOnly);
     }
   });
@@ -1476,7 +1493,7 @@ window.addEventListener('load', function () {
   contraCorrenteVueApp.directive('upper', {
     twoWay: true,
 
-    created (el) {
+    created(el) {
       el.addEventListener('input', function (e) {
         this.value = this.value?.toUpperCase() ?? ''
       });
@@ -1485,4 +1502,3 @@ window.addEventListener('load', function () {
 
   contraCorrenteVueApp.mount('#checkout-form-envelope');
 }, false);
-
