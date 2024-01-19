@@ -292,10 +292,10 @@ const contraCorrenteVueApp = createApp({
     },
 
     getInstallments(creditCardBrandName) {
-      const { getProductsSubtotal, getShippingPrice } = this
+      const { getProductsSubtotal, getShippingPrice, discount } = this
 
       PagSeguroDirectPayment.getInstallments({
-        amount: getProductsSubtotal + getShippingPrice,
+        amount: getProductsSubtotal + getShippingPrice + discount,
         maxInstallmentNoInterest: 6, // máximo de parcelas sem juros
         brand: creditCardBrandName,
         success: response => {
@@ -505,7 +505,7 @@ const contraCorrenteVueApp = createApp({
           billing_city: customerShippingCity.value,
           billing_state: customerShippingState.value,
 
-          amount: +(getProductsSubtotal + getShippingPrice + discount).toFixed(2),
+          amount: +(getProductsSubtotal + getShippingPrice).toFixed(2),
           sender_hash: senderHash,
 
           products: sProduct.map(({ quantity, slug }) => ({
@@ -517,7 +517,15 @@ const contraCorrenteVueApp = createApp({
 
           ...(Object.keys(cupomData).includes('code') && {
             discount_code: cupomData.code
-          })
+          }),
+
+          ...(cupomData?.cupom_type === 'subtotal' && {
+            amount: +(getProductsSubtotal + getShippingPrice + discount).toFixed(2),
+          }),
+
+          ...(cupomData?.cupom_type === 'shipping' && {
+            shippingPrice: parseFloat(getShippingPrice.toFixed(2)) + discount
+          }),
         })
       })
 
@@ -540,6 +548,8 @@ const contraCorrenteVueApp = createApp({
     async postCreditCardPayment() {
       const {
         sProduct,
+        discount,
+        cupomData,
 
         selectedShipping,
         selectedInstallmentOption,
@@ -569,7 +579,7 @@ const contraCorrenteVueApp = createApp({
         customerBillingComplement,
         customerBillingNeighborhood,
         customerBillingCity,
-        customerBillingState,
+        customerBillingState
       } = this
 
       const paymentResponse = await fetch('https://xef5-44zo-gegm.b2.xano.io/api:0FEmfXD_/api_payment_process_card_V02', {
@@ -608,7 +618,7 @@ const contraCorrenteVueApp = createApp({
           card_token: creditCardToken,
           card_number_of_installments: selectedInstallmentOption,
           card_installments_value: +installments.installments[brandName].find(({ quantity }) => quantity === selectedInstallmentOption).installmentAmount.replace(/[^\d,]+/g, '').replace(/\,+/g, '.'),
-          amount: installments.installments[brandName].at(0).totalAmount,
+          amount: installments.installments[brandName].at(selectedInstallmentOption - 1 || 0).totalAmount,
           sender_hash: senderHash,
 
           products: sProduct.map(({ quantity, slug }) => ({
@@ -616,7 +626,15 @@ const contraCorrenteVueApp = createApp({
           })),
 
           shippingMethod: selectedShipping,
-          shippingPrice: parseFloat(getShippingPrice.toFixed(2))
+          shippingPrice: parseFloat(getShippingPrice.toFixed(2)),
+
+          ...(Object.keys(cupomData).includes('code') && {
+            discount_code: cupomData.code
+          }),
+
+          ...(cupomData?.cupom_type === 'shipping' && {
+            shippingPrice: parseFloat(getShippingPrice.toFixed(2)) + discount
+          })
         })
       })
 
@@ -772,18 +790,36 @@ const contraCorrenteVueApp = createApp({
         return
       }
 
+      if (data.cupom_type === 'isbn' && !this.productsResponse.some(({ ISBN }) => ISBN === data.isbn)) {
+        this.cupomData = {
+          error: true
+        }
+
+        this.coupomErrorMessage = 'Este cupom não é válido para o livro selecionado'
+
+        return
+      }
+
       if (data.cupom_type === 'shipping' && this.selectedShipping.length === 0) {
         this.coupomSuccessMessage = 'Cupom aplicado com sucesso! Para visualizar o desconto, defina o método de envio.'
-      } else {
-        this.coupomSuccessMessage = 'Cupom de desconto aplicado com sucesso!'
+      }
+
+      this.coupomSuccessMessage = 'Cupom de desconto aplicado com sucesso!'
+
+      if (this.selectedPayment === 'creditcard') {
+        await this.queryCardBrand(this.creditCardNumber.replace(/\s+/g, ''))
       }
 
       this.cupomData = data
     },
 
-    handleRemoveCoupon() {
+    async handleRemoveCoupon() {
       this.cupomCode = ''
       this.cupomData = {}
+
+      if (this.selectedPayment === 'creditcard') {
+        await this.queryCardBrand(this.creditCardNumber.replace(/\s+/g, ''))
+      }
     }
   },
 
@@ -1227,11 +1263,12 @@ const contraCorrenteVueApp = createApp({
 
     discount() {
       const {
+        productsResponse,
         getShippingPrice,
         getProductsSubtotal
       } = this
 
-      const { is_percentage, min_purchase, products_id, value, cupom_type } = this.cupomData
+      const { is_percentage, min_purchase, products_id, value, cupom_type, isbn } = this.cupomData
 
       const isGreaterThanMinPurchaseValue = getProductsSubtotal > min_purchase
 
@@ -1247,7 +1284,11 @@ const contraCorrenteVueApp = createApp({
             ? getProductsSubtotal - discountPercentage(getProductsSubtotal, -value)
             : discountReal(getProductsSubtotal, value)
         case 'isbn':
-          return 0
+          const { price } = productsResponse.find(({ ISBN }) => ISBN === isbn)
+
+          return is_percentage
+            ? price - discountPercentage(price, -value)
+            : discountReal(price, value)
         default:
           return 0
       }
