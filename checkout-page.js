@@ -516,16 +516,21 @@ const contraCorrenteVueApp = createApp({
           shippingPrice: parseFloat(getShippingPrice.toFixed(2)),
 
           ...(Object.keys(cupomData).includes('code') && {
-            discount_code: cupomData.code
+            discount_code: cupomData.code,
+            discount: parseFloat((discount * -1).toFixed(2))
           }),
 
           ...(cupomData?.cupom_type === 'subtotal' && {
-            amount: +(getProductsSubtotal + getShippingPrice + discount).toFixed(2),
+            amount: +(getProductsSubtotal + getShippingPrice + discount).toFixed(2)
           }),
 
           ...(cupomData?.cupom_type === 'shipping' && {
             shippingPrice: parseFloat(getShippingPrice.toFixed(2)) + discount
           }),
+
+          ...(cupomData?.cupom_type === 'isbn' && {
+            amount: +(getProductsSubtotal + getShippingPrice + discount).toFixed(2)
+          })
         })
       })
 
@@ -567,6 +572,7 @@ const contraCorrenteVueApp = createApp({
 
         shippingMethod,
         getShippingPrice,
+        getProductsSubtotal,
 
         customerMail,
         customerPhone,
@@ -581,6 +587,13 @@ const contraCorrenteVueApp = createApp({
         customerBillingCity,
         customerBillingState
       } = this
+
+      const amount = parseFloat((getShippingPrice + getProductsSubtotal + discount).toFixed(2))
+
+      console.log(amount, 'amount');
+      console.log(discount, 'discount');
+      console.log(getShippingPrice, 'getShippingPrice');
+      console.log(+installments.installments[brandName].find(({ quantity }) => quantity === selectedInstallmentOption).installmentAmount.replace(/[^\d,]+/g, '').replace(/\,+/g, '.'), 'installment');
 
       const paymentResponse = await fetch('https://xef5-44zo-gegm.b2.xano.io/api:0FEmfXD_/api_payment_process_card_V02', {
         method: 'POST',
@@ -618,7 +631,7 @@ const contraCorrenteVueApp = createApp({
           card_token: creditCardToken,
           card_number_of_installments: selectedInstallmentOption,
           card_installments_value: +installments.installments[brandName].find(({ quantity }) => quantity === selectedInstallmentOption).installmentAmount.replace(/[^\d,]+/g, '').replace(/\,+/g, '.'),
-          amount: installments.installments[brandName].at(selectedInstallmentOption - 1 || 0).totalAmount,
+          amount,
           sender_hash: senderHash,
 
           products: sProduct.map(({ quantity, slug }) => ({
@@ -629,11 +642,8 @@ const contraCorrenteVueApp = createApp({
           shippingPrice: parseFloat(getShippingPrice.toFixed(2)),
 
           ...(Object.keys(cupomData).includes('code') && {
-            discount_code: cupomData.code
-          }),
-
-          ...(cupomData?.cupom_type === 'shipping' && {
-            shippingPrice: parseFloat(getShippingPrice.toFixed(2)) + discount
+            discount_code: cupomData.code,
+            discount: parseFloat((discount * -1).toFixed(2))
           })
         })
       })
@@ -886,7 +896,7 @@ const contraCorrenteVueApp = createApp({
       return STRING_2_BRL_CURRENCY(getShippingPrice)
     },
 
-    subtotal() {
+    subtotal () {
       const { getProductsSubtotal } = this
 
       return STRING_2_BRL_CURRENCY(getProductsSubtotal)
@@ -895,7 +905,7 @@ const contraCorrenteVueApp = createApp({
     totalOrder() {
       const { getProductsSubtotal, getShippingPrice, discount } = this
 
-      return STRING_2_BRL_CURRENCY(getProductsSubtotal + getShippingPrice - (discount * -1))
+      return STRING_2_BRL_CURRENCY(getProductsSubtotal + getShippingPrice + discount)
     },
 
     deliveryOptions() {
@@ -1270,7 +1280,7 @@ const contraCorrenteVueApp = createApp({
 
       const { is_percentage, min_purchase, products_id, value, cupom_type, isbn } = this.cupomData
 
-      const isGreaterThanMinPurchaseValue = getProductsSubtotal > min_purchase
+      const isGreaterThanMinPurchaseValue = getProductsSubtotal >= min_purchase
 
       if (!isGreaterThanMinPurchaseValue) return 0
 
