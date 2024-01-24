@@ -657,7 +657,7 @@ const contraCorrenteVueApp = createApp({
       const paymentData = await paymentResponse.json()
 
       setTimeout(() => {
-        location.href = 'https://contracorrente-ecomm.webflow.io/order-confirmation?order-id=' + paymentData?.transactionid;
+        location.href = `${location.hostname}/order-confirmation?order-id=${paymentData?.transactionid}`;
       }, 1000);
     },
 
