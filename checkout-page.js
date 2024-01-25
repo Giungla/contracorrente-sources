@@ -515,22 +515,25 @@ const contraCorrenteVueApp = createApp({
           shippingMethod: selectedShipping,
           shippingPrice: parseFloat(getShippingPrice.toFixed(2)),
 
+          discount: 0,
+          discount_code: null,
+
           ...(Object.keys(cupomData).includes('code') && {
             discount_code: cupomData.code,
             discount: parseFloat((discount * -1).toFixed(2))
           }),
 
-          ...(cupomData?.cupom_type === 'subtotal' && {
-            amount: +(getProductsSubtotal + getShippingPrice + discount).toFixed(2)
-          }),
+          // ...(cupomData?.cupom_type === 'subtotal' && {
+          //   amount: +(getProductsSubtotal + getShippingPrice + discount).toFixed(2)
+          // }),
 
-          ...(cupomData?.cupom_type === 'shipping' && {
-            shippingPrice: parseFloat(getShippingPrice.toFixed(2)) + discount
-          }),
+          // ...(cupomData?.cupom_type === 'shipping' && {
+          //   shippingPrice: parseFloat(getShippingPrice.toFixed(2)) + discount
+          // }),
 
-          ...(cupomData?.cupom_type === 'isbn' && {
-            amount: +(getProductsSubtotal + getShippingPrice + discount).toFixed(2)
-          })
+          // ...(cupomData?.cupom_type === 'isbn' && {
+          //   amount: +(getProductsSubtotal + getShippingPrice + discount).toFixed(2)
+          // })
         })
       })
 
@@ -545,7 +548,7 @@ const contraCorrenteVueApp = createApp({
       window.open(paymentData.boletourl, '_blank');
 
       setTimeout(() => {
-        location.href = 'https://contracorrente-ecomm.webflow.io/order-confirmation?order-id=' + paymentData.transactionid;
+        location.href = `${location.protocol}//${location.hostname}/order-confirmation?order-id=${paymentData?.transactionid}`;
       }, 1000);
     },
 
@@ -588,12 +591,7 @@ const contraCorrenteVueApp = createApp({
         customerBillingState
       } = this
 
-      const amount = parseFloat((getShippingPrice + getProductsSubtotal + discount).toFixed(2))
-
-      console.log(amount, 'amount');
-      console.log(discount, 'discount');
-      console.log(getShippingPrice, 'getShippingPrice');
-      console.log(+installments.installments[brandName].find(({ quantity }) => quantity === selectedInstallmentOption).installmentAmount.replace(/[^\d,]+/g, '').replace(/\,+/g, '.'), 'installment');
+      const amount = parseFloat((getShippingPrice + getProductsSubtotal + discount).toFixed(2));
 
       const paymentResponse = await fetch('https://xef5-44zo-gegm.b2.xano.io/api:0FEmfXD_/api_payment_process_card_V02', {
         method: 'POST',
