@@ -135,16 +135,16 @@ const orderConfirmationApp = createApp({
     },
 
     productList () {
-      const { order_items, order } = this
+      const { order_items } = this
 
       if (order_items.length > 0) {
-        return order_items.map(({ id, image, price, title }) => ({
+        return order_items.map(({ id, image, price, title, quantity }) => ({
           id,
           image,
           title,
+          quantity,
           price: STRING_2_BRL_CURRENCY(price),
-          htmlImage: `<img src="${image}" alt="${title}" loading="lazy" />`,
-          quantity: order_items.find(product => product.id === id)?.quantity
+          htmlImage: `<img src="${image}" alt="${title}" loading="lazy" />`
         }))
       }
 
@@ -166,10 +166,10 @@ const orderConfirmationApp = createApp({
     },
 
     getShippingPrice () {
-      const { order, calcSubtotalFromProducts, floatFix } = this
+      const { order, floatFix } = this
 
-      return order.hasOwnProperty('id')
-        ? floatFix(order?.total - calcSubtotalFromProducts)
+      return order.hasOwnProperty('shipping_total')
+        ? floatFix(order?.shipping_total)
         : 0
     },
 
@@ -190,7 +190,7 @@ const orderConfirmationApp = createApp({
     },
 
     total () {
-      const { order, getDiscountPrice } = this
+      const { order } = this
 
       return STRING_2_BRL_CURRENCY(order.hasOwnProperty('total') ? order.total : 0)
     },
