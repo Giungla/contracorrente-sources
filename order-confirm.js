@@ -214,19 +214,27 @@ const orderConfirmationApp = createApp({
     },
 
     getDiscountPrice () {
-      const { coupon, hasDiscount, getShippingPrice, calcSubtotalFromProducts } = this
+      const { coupon, hasDiscount, getShippingPrice, calcSubtotalFromProducts, order_items } = this
 
       if (!hasDiscount) return 0
 
+      const isPercentageDiscount = coupon.is_percentage
+
       switch (coupon.cupom_type) {
         case 'shipping':
-          return coupon.is_percentage
+          return isPercentageDiscount
             ? getShippingPrice - discountPercentage(getShippingPrice, -coupon.value)
             : discountReal(getShippingPrice, coupon.value)
         case 'subtotal':
-          return coupon.is_percentage
+          return isPercentageDiscount
             ? calcSubtotalFromProducts - discountPercentage(calcSubtotalFromProducts, -coupon.value)
             : discountReal(calcSubtotalFromProducts, coupon.value)
+        case 'isbn':
+          const getProductFromISBN = order_items.find(({ ISBN }) => ISBN === coupon.isbn)
+
+          return isPercentageDiscount
+            ? getProductFromISBN?.price - discountPercentage(getProductFromISBN?.price, -coupon.value)
+            : discountReal(getProductFromISBN?.price, coupon.value)
       }
     }
   },
