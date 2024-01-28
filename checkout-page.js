@@ -655,7 +655,7 @@ const contraCorrenteVueApp = createApp({
       const paymentData = await paymentResponse.json()
 
       setTimeout(() => {
-        location.href = `${location.hostname}/order-confirmation?order-id=${paymentData?.transactionid}`;
+        location.href = `${location.protocol}//${location.hostname}/order-confirmation?order-id=${paymentData?.transactionid}`;
       }, 1000);
     },
 
