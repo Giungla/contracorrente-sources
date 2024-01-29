@@ -124,6 +124,7 @@ const contraCorrenteVueApp = createApp({
   data() {
     return {
       isLoading: false,
+      savedEmail: false,
       errorMessageOrderValidation: null,
 
       validationFeedback: [
@@ -202,6 +203,12 @@ const contraCorrenteVueApp = createApp({
 
       this.queryCreditCardNumber({ creditCardNumber, creditCardCode, creditCardDate })
     })
+
+    this.$refs.customerMail.addEventListener('blur', (e) => {
+      if (this.savedEmail || !e.target.validity.valid) return
+
+      this.saveCart(e.target.value)
+    }, false)
   },
 
   watch: {
@@ -275,6 +282,21 @@ const contraCorrenteVueApp = createApp({
   },
 
   methods: {
+    async saveCart (email) {
+      await fetch('https://xef5-44zo-gegm.b2.xano.io/api:0FEmfXD_/cart_abandonment', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          products: this.productsResponse.map(({ ISBN }) => ISBN)
+        }),
+        headers: {
+          'Content-Type': 'application/json'
+        },
+      }).then(() => {
+        this.savedEmail = true
+      });
+    },
+
     runValidations(fieldname) {
       if (this.validationFeedback.includes(fieldname)) return
 
