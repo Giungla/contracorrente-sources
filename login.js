@@ -120,7 +120,7 @@ function isAuthenticated () {
 if (isAuthenticated()) {
   location.href = '/area-do-usuario'
 } else {
-  // attachEvent(document, 'DOMContentLoaded', function () {
+  attachEvent(document, 'DOMContentLoaded', function () {
     // Selecting the elements for email
     const userField   = document.querySelector('[data-wtf-user]')
     const userFieldWrapper = document.querySelector('[data-wtf-user-wrapper]')
@@ -138,6 +138,8 @@ if (isAuthenticated()) {
     if (!passwordField) {
       throw new Error('[WithTheFlow] Cannot find a field with the \'data-wtf-password\' attribute')
     }
+
+    const generalMessage = document.querySelector('[data-wtf-general-error-message]')
 
     const form = userField.closest('form')
 
@@ -176,6 +178,8 @@ if (isAuthenticated()) {
 
         location.href = '/area-do-usuario'
       } catch (error) {
+        generalMessage.style.display = 'flex'
+
         console.warn('[WithTheFlow] Error during login', error.message)
       }
     }
@@ -203,11 +207,11 @@ if (isAuthenticated()) {
       return re.test(password)
     }
 
-  /**
-   *
-   * @param event {Event}
-   */
-  function handleFocus (event) {
+    /**
+     *
+     * @param event {Event}
+     */
+    function handleFocus (event) {
       const wrapper = event.target === userField
         ? userFieldWrapper
         : passwordFieldWrapper
@@ -215,11 +219,11 @@ if (isAuthenticated()) {
       wrapper.style.border = '1px solid #e39623'
     }
 
-  /**
-   *
-   * @param event {Event}
-   */
-  function handleBlur (event) {
+    /**
+     *
+     * @param event {Event}
+     */
+    function handleBlur (event) {
       const isEmailField = event.target === userField
 
       const wrapper = isEmailField
@@ -233,6 +237,8 @@ if (isAuthenticated()) {
       wrapper.style.border = isValid
         ? '1px solid rgba(233, 233, 233, 0.4)'
         : '1px solid red'
+
+      wrapper.classList.toggle('errormessage', !isValid)
 
       wrapper.previousElementSibling.style.display = isValid
         ? 'none'
@@ -264,6 +270,6 @@ if (isAuthenticated()) {
     }, false)
 
     console.log('[WithTheFlow] Your form is running correctly')
-  // })
+  })
 }
 
