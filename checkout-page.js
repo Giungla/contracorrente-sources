@@ -476,6 +476,12 @@ const contraCorrenteVueApp = createApp({
       this.isLoading = false
     },
 
+    clearUniqueDash (value) {
+      return value.length === 1 && value === '-'
+        ? ''
+        : value
+    },
+
     // envio de pagamento via boleto
     async postPayment() {
       const {
@@ -497,7 +503,8 @@ const contraCorrenteVueApp = createApp({
         customerShippingState,
         senderHash,
         getProductsSubtotal,
-        getShippingPrice
+        getShippingPrice,
+        clearUniqueDash
       } = this
 
       const paymentResponse = await fetch('https://xef5-44zo-gegm.b2.xano.io/api:0FEmfXD_/api_payment_process_boleto', {
@@ -506,26 +513,26 @@ const contraCorrenteVueApp = createApp({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          customer_name: customerShippingSender.value,
-          customer_email: customerMail.value,
-          customer_cpf_cnpj: customerCPFCNPJ.value,
-          customer_phone: customerPhone.value,
-          customer_birthdate: customerBirthdate.value,
-          shipping_zip_code: customerShippingCEP.value,
-          shipping_address: customerShippingAddress.value,
-          shipping_number: customerShippingNumber.value,
-          shipping_complement: customerShippingComplement.value,
-          shipping_neighborhood: customerShippingNeighborhood.value,
-          shipping_city: customerShippingCity.value,
-          shipping_state: customerShippingState.value,
+          customer_name: clearUniqueDash(customerShippingSender.value),
+          customer_email: clearUniqueDash(customerMail.value),
+          customer_cpf_cnpj: clearUniqueDash(customerCPFCNPJ.value),
+          customer_phone: clearUniqueDash(customerPhone.value),
+          customer_birthdate: clearUniqueDash(customerBirthdate.value),
+          shipping_zip_code: clearUniqueDash(customerShippingCEP.value),
+          shipping_address: clearUniqueDash(customerShippingAddress.value),
+          shipping_number: clearUniqueDash(customerShippingNumber.value),
+          shipping_complement: clearUniqueDash(customerShippingComplement.value),
+          shipping_neighborhood: clearUniqueDash(customerShippingNeighborhood.value),
+          shipping_city: clearUniqueDash(customerShippingCity.value),
+          shipping_state: clearUniqueDash(customerShippingState.value),
 
-          billing_zip_code: customerShippingCEP.value,
-          billing_address: customerShippingAddress.value,
-          billing_number: customerShippingNumber.value,
-          billing_complement: customerShippingComplement.value,
-          billing_neighborhood: customerShippingNeighborhood.value,
-          billing_city: customerShippingCity.value,
-          billing_state: customerShippingState.value,
+          billing_zip_code: clearUniqueDash(customerShippingCEP.value),
+          billing_address: clearUniqueDash(customerShippingAddress.value),
+          billing_number: clearUniqueDash(customerShippingNumber.value),
+          billing_complement: clearUniqueDash(customerShippingComplement.value),
+          billing_neighborhood: clearUniqueDash(customerShippingNeighborhood.value),
+          billing_city: clearUniqueDash(customerShippingCity.value),
+          billing_state: clearUniqueDash(customerShippingState.value),
 
           amount: +(getProductsSubtotal + getShippingPrice).toFixed(2),
           sender_hash: senderHash,
@@ -534,7 +541,7 @@ const contraCorrenteVueApp = createApp({
             quantity, slug
           })),
 
-          shippingMethod: selectedShipping,
+          shippingMethod: clearUniqueDash(selectedShipping),
           shippingPrice: parseFloat(getShippingPrice.toFixed(2)),
 
           discount: 0,
