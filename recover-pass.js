@@ -137,12 +137,12 @@ if (isAuthenticated()) {
 
     if (!generalErrorElement) return
 
-    generalErrorElement.style.display = 'block'
+    generalErrorElement.classList.remove('oculto')
 
     if (!autoHide) return
 
     setTimeout(() => {
-      generalErrorElement.style.display = 'none'
+      generalErrorElement.classList.add('oculto')
     }, autoHideTime)
   }
 
@@ -203,8 +203,8 @@ if (isAuthenticated()) {
       : 'none'
   }
 
-  // attachEvent(document, 'DOMContentLoaded', function () {
-    const mailField = document.querySelector('#email')
+  attachEvent(document, 'DOMContentLoaded', function () {
+    const mailField = document.querySelector('[data-wtf-email]')
     const mailFieldWrapper = mailField.parentElement
     const recoverForm = mailField.closest('form')
 
@@ -227,9 +227,11 @@ if (isAuthenticated()) {
         return showGeneralError(true, 2000)
       }
 
-      // implementar confirmação de envio
+      recoverForm.setAttribute('disabled', 'disabled')
+
+      document.querySelector('[data-wtf-success-message]').classList.remove('oculto')
     })
 
     console.log('[WithTheFlow] Your form is running correctly')
-  // })
+  })
 }
