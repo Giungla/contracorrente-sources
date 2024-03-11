@@ -123,15 +123,42 @@ const orderConfirmationApp = createApp({
       }
     },
 
+    /**
+     *
+     * @returns {string}
+     */
     paymentMethod () {
       const { order } = this
 
       const methodsName = {
-        ticket: 'Boleto',
-        creditcard: 'Cartão de crédito'
-      };
+        ticket: 'Não esqueça de efetuar o pagamento, a sua compra foi efetuada com boleto. Clique no botão abaixo para efetuar o pagamento.',
+        creditcard: 'Sua compra foi efetuada com cartão de crédito'
+      }
 
       return methodsName[order?.payment_method] ?? '-'
+    },
+
+    /**
+     *
+     * @returns {boolean}
+     */
+    isTicket () {
+      const { order } = this
+
+      return order?.payment_method === 'ticket'
+    },
+
+    /**
+     * @returns {false | string}
+     */
+    ticketURL () {
+      const { order, isTicket } = this
+
+      const { boletourl } = order
+
+      return isTicket && boletourl
+        ? `https://boleto.pagseguro.com.br/${boletourl}.pdf`
+        : false
     },
 
     productList () {
@@ -237,11 +264,9 @@ const orderConfirmationApp = createApp({
             : discountReal(getProductFromISBN?.price, coupon.value)
       }
     }
-  },
-
-  watch: {}
-});
+  }
+})
 
 window.addEventListener('load', function () {
-  orderConfirmationApp.mount('#order-confirmation-envelope');
-}, false);
+  orderConfirmationApp.mount('#order-confirmation-envelope')
+}, false)
