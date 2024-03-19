@@ -173,7 +173,7 @@ if (isAuthenticated()) {
           path: '/',
           secure: true,
           sameSite: 'Strict',
-          expires: new Date(Date.now() + 31_556_952_000)
+          expires: new Date(Date.now() + 5_184_000_000)
         })
 
         location.href = '/area-do-usuario'
