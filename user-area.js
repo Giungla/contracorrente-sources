@@ -8,9 +8,17 @@
 
 const COOKIE_SEPARATOR = '; '
 
+const statesAcronymRE = /^AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MS|MT|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO$/
+
 const blurEvent = new CustomEvent('blur')
 
+const abortController = new AbortController()
+const signal = abortController.signal
+
 const _USER = {}
+const _ADDRESSES = {
+  list: []
+}
 
 const fieldMap = {
   name: '[name="name"]',
@@ -50,6 +58,54 @@ const USER = new Proxy(_USER, {
       currentField.dispatchEvent(blurEvent)
 
       return true
+    }
+
+    return false
+  }
+})
+
+const ADDRESSES = new Proxy(_ADDRESSES, {
+  /**
+   *
+   * @param target   {Object}
+   * @param property {string | symbol | number}
+   * @param address  {UserAddress}
+   * @returns        {boolean}
+   */
+  set (target, property, address) {
+    switch (property) {
+      case 'register':
+        target.list.push(address)
+
+        const currentAddressTemplate = addressTemplate.cloneNode(true)
+
+        currentAddressTemplate.setAttribute('data-address-id', address.id)
+
+        currentAddressTemplate.classList.remove('oculto')
+
+        addressContainer.appendChild(currentAddressTemplate)
+
+        feedAddress(currentAddressTemplate, address)
+
+        const hasAddresses = target.list.length > 0
+
+        noAddresses.classList.toggle('oculto', hasAddresses)
+
+        return true
+      case 'remove':
+        try {
+          deleteAddress(address.id).then(() => {
+            addressContainer.removeChild(querySelector(`[data-address-id="${address.id}"]`))
+
+            target.list.splice(target.list.findIndex(({ id }) => id === address.id), 1)
+
+            const isWarnHide = noAddresses.classList.toggle('oculto', target.list.length > 0)
+
+            addressContainer.classList.toggle('oculto', !isWarnHide)
+          })
+        } catch (e) {}
+
+        return true
     }
 
     return false
@@ -294,20 +350,8 @@ function feedAddress (addressNode, { id, cep, address, neighborhood, city, state
   querySelector('[data-wtf-city]', addressNode).textContent += `: ${city}`
   querySelector('[data-wtf-state]', addressNode).textContent += `: ${state}`
 
-  attachEvent(addressNode.querySelector('#btLoginUser'), 'click', async function (e) {
-    e.preventDefault()
-
-    const { succeeded, remaining } = await deleteAddress(id)
-
-    if (succeeded) {
-      addressNode.parentElement.removeChild(addressNode)
-
-      // querySelector('[data-wtf-addresses-container]').classList('oculto', remaining === 0)
-
-      return
-    }
-
-    alert('Falha ao remover o endereço')
+  attachEvent(addressNode.querySelector('#btLoginUser'), 'click', function () {
+    ADDRESSES.remove = { id }
   })
 }
 
@@ -356,6 +400,14 @@ async function updateUserDetails (userDetails) {
   }
 }
 
+const noAddresses = querySelector('[data-wtf-no-registered-address-error]')
+const noOrders = querySelector('[data-wtf-no-registered-orders-error]')
+
+const addressTemplate = querySelector('[data-wtf-registered-address]').cloneNode(true)
+
+const toggleAddressForm = querySelector('[data-wtf-add-address]')
+const addressContainer = querySelector('[data-wtf-registered-address]').parentElement
+
 if (!isAuthenticated()) {
   location.href = '/log-in'
 } else {
@@ -370,13 +422,6 @@ if (!isAuthenticated()) {
     querySelector('[data-wtf-email]').innerText = data.user.email
     querySelector('[data-wtf-phone]').innerText = data.user.telephone
 
-    const noAddresses = querySelector('[data-wtf-no-registered-address-error]')
-    const noOrders = querySelector('[data-wtf-no-registered-orders-error]')
-
-    const addressTemplate = querySelector('[data-wtf-registered-address]').cloneNode(true)
-
-    const addressContainer = querySelector('[data-wtf-registered-address]').parentElement
-
     addressContainer.innerHTML = ''
 
     const hasNoAddresses = addressContainer.classList.toggle('oculto', data.addresses.length === 0)
@@ -385,17 +430,7 @@ if (!isAuthenticated()) {
     noAddresses.classList.toggle('oculto', !hasNoAddresses)
 
     for (let index = 0, len = data.addresses.length; index < len; index++) {
-      const address = data.addresses[index]
-
-      const currentAddressTemplate = addressTemplate.cloneNode(true)
-
-      currentAddressTemplate.setAttribute('data-address-id', address.id)
-
-      currentAddressTemplate.classList.remove('oculto')
-
-      addressContainer.appendChild(currentAddressTemplate)
-
-      feedAddress(currentAddressTemplate, address)
+      ADDRESSES.register = data.addresses[index]
     }
 
     querySelector('[data-wtf-loader]').classList.add('oculto')
@@ -485,6 +520,11 @@ if (!isAuthenticated()) {
     return isValidName
   }
 
+  /**
+   *
+   * users variables
+   */
+
   const userForm = document.getElementById('wf-form-updateUserData_formElement')
   const userFormBlock = querySelector('[data-wtf-user-form-info-update]')
   const cancelUserUpdate = querySelector('[data-wtf-close-update-user]')
@@ -503,6 +543,9 @@ if (!isAuthenticated()) {
   const fieldUserPhoneError = querySelector('[data-wtf-phone-error]')
   const fieldUserPhoneWrapper = querySelector('[data-wtf-phone-wrapper]')
 
+  /**
+   * start user form listeners
+   */
   attachEvent(userForm, 'submit', async function (e) {
     e.preventDefault()
     e.stopPropagation()
@@ -583,4 +626,343 @@ if (!isAuthenticated()) {
   }, false)
 
   attachEvent(fieldUserPhone, 'blur', validatePhoneField, false)
+
+  /**
+   * validation addresses functions
+   */
+
+  /**
+   *
+   * @typedef VIACEPPayload
+   * @property {string} cep
+   * @property {string} logradouro
+   * @property {string} complemento
+   * @property {string} bairro
+   * @property {string} localidade
+   * @property {string} uf
+   * @property {string} ibge
+   * @property {string} gia
+   * @property {string} ddd
+   * @property {string} siafi
+   */
+
+  /**
+   *
+   * @param cep    {string}
+   * @param signal {AbortSignal}
+   * @returns {Promise< { error: true } | { error: false, data: VIACEPPayload } >}
+   */
+  async function getAddressDetails (cep, signal = null) {
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`, {
+        signal,
+        method: 'GET'
+      })
+
+      const data = await response.json()
+
+      return {
+        data,
+        error: Reflect.has(data,  'erro')
+      }
+    } catch (e) {
+      return {
+        error: true
+      }
+    }
+  }
+
+  /**
+   * @typedef RegisterAddressBody
+   * @property {string} nick
+   * @property {string} cep
+   * @property {string} address
+   * @property {string} number
+   * @property {string} complement
+   * @property {string} neighborhood
+   * @property {string} city
+   * @property {string} state
+   */
+
+  /**
+   *
+   * @param address {RegisterAddressBody}
+   * @returns       {Promise<{ error: true } | { error: false, data: RegisterAddressBody }>}
+   */
+  async function registerAddress (address) {
+    try {
+      const response = await fetch('https://xef5-44zo-gegm.b2.xano.io/api:0FEmfXD_/register_address', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': getCookie('__Host-cc-AuthToken')
+        },
+        body: JSON.stringify(address)
+      })
+
+      if (!response.ok) {
+        return {
+          error: true
+        }
+      }
+
+      const data = await response.json()
+
+      return {
+        data,
+        error: false
+      }
+    } catch (e) {
+      return {
+        error: true
+      }
+    }
+  }
+
+  /**
+   *
+   * @param cep {string}
+   * @returns   {string}
+   */
+  function maskCEP (cep) {
+    const cleanCEP = numberOnly(cep)
+
+    const len = cleanCEP.length
+
+    if (len < 6) {
+      return cleanCEP
+    }
+
+    return cleanCEP.replace(/^(\d{5})(\d{1,3})$/, '$1-$2')
+  }
+
+  function validateAddressNick () {
+    const isNickValid = fieldAddressNick.value.length > 2
+
+    fieldAddressNickError.classList.toggle('oculto', isNickValid)
+    fieldAddressNickWrapper.classList.toggle('errormessage', !isNickValid)
+
+    return isNickValid
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  function validateAddressCEP () {
+    const isCEPValid = /^\d{5}\-\d{3}$/.test(fieldAddressCEP.value) && !/^(\d)\1{4}\-\1{3}$/.test(fieldAddressCEP.value)
+
+    fieldAddressCEPError.classList.toggle('oculto', isCEPValid)
+    fieldAddressCEPWrapper.classList.toggle('errormessage', !isCEPValid)
+
+    return isCEPValid
+  }
+
+  /**
+   * @returns {boolean}
+   */
+  function validateAddressName () {
+    const isNameValid = fieldAddressName.value.length > 2
+
+    fieldAddressNameError.classList.toggle('oculto', isNameValid)
+    fieldAddressNameWrapper.classList.toggle('errormessage', !isNameValid)
+
+    return isNameValid
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  function validateAddressNumber () {
+    const isNumberValid = fieldAddressNumber.value.length > 0
+
+    fieldAddressNumberError.classList.toggle('oculto', isNumberValid)
+    fieldAddressNumberWrapper.classList.toggle('errormessage', !isNumberValid)
+
+    return isNumberValid
+  }
+
+  /**
+   * @returns {boolean}
+   */
+  function validateAddressNeighborhood () {
+    const isValidNeighborhood = fieldAddressNeighborhood.value.length > 0
+
+    fieldAddressNeighborhoodError.classList.toggle('oculto', isValidNeighborhood)
+    fieldAddressNeighborhoodWrapper.classList.toggle('errormessage', !isValidNeighborhood)
+
+    return isValidNeighborhood
+  }
+
+  /**
+   *
+   * @returns {boolean}
+   */
+  function validateAddressCity () {
+    const isCityValid = fieldAddressCity.value.length > 2
+
+    fieldAddressCityError.classList.toggle('oculto', isCityValid)
+    fieldAddressCityWrapper.classList.toggle('errormessage', !isCityValid)
+
+    return isCityValid
+  }
+
+  /**
+   * @returns {boolean}
+   */
+  function validateAddressState () {
+    const isStateValid = statesAcronymRE.test(fieldAddressState.value)
+
+    fieldAddressStateError.classList.toggle('oculto', isStateValid)
+    fieldAddressStateWrapper.classList.toggle('errormessage', !isStateValid)
+
+    return isStateValid
+  }
+
+  /**
+   * addresses variables
+   */
+  const addressFormBlock = querySelector('[data-wtf-address-form]')
+  // TODO
+  // corrigir valor da query abaixo
+  const addressForm = querySelector('#wf-form-addAddressData_formElement')
+
+  const fieldAddressNick = querySelector('[data-wtf-tag-new]')
+  const fieldAddressNickError = querySelector('[data-wtf-tag-new-error]')
+  const fieldAddressNickWrapper = querySelector('[data-wtf-tag-new-wrapper]')
+
+  const fieldAddressCEP = querySelector('[data-wtf-zipcode-new]')
+  const fieldAddressCEPError = querySelector('[data-wtf-zipcode-new-error]')
+  const fieldAddressCEPWrapper = querySelector('[data-wtf-zipcode-new-wrapper]')
+
+  const fieldAddressName = querySelector('[data-wtf-address-new]')
+  const fieldAddressNameError = querySelector('[data-wtf-address-new-error]')
+  const fieldAddressNameWrapper = querySelector('[data-wtf-address-new-wrapper]')
+
+  const fieldAddressComplement = querySelector('[data-wtf-complement-new]')
+
+  const fieldAddressNumber = querySelector('[data-wtf-number-new]')
+  const fieldAddressNumberError = querySelector('[data-wtf-number-new-error]')
+  const fieldAddressNumberWrapper = querySelector('[data-wtf-number-new-wrapper]')
+
+  const fieldAddressNeighborhood = querySelector('[data-wtf-neighborhood-new]')
+  const fieldAddressNeighborhoodError = querySelector('[data-wtf-neighborhood-new-error]')
+  const fieldAddressNeighborhoodWrapper = querySelector('[data-wtf-neighborhood-new-wrapper]')
+
+  const fieldAddressCity = querySelector('[data-wtf-city-new]')
+  const fieldAddressCityError = querySelector('[data-wtf-city-new-error]')
+  const fieldAddressCityWrapper = querySelector('[data-wtf-city-new-error]')
+
+  const fieldAddressState = querySelector('[data-wtf-state-new]')
+  const fieldAddressStateError = querySelector('[data-wtf-state-new-error]')
+  const fieldAddressStateWrapper = querySelector('[data-wtf-state-new-wrapper]')
+
+
+  /**
+   * start addresses form listeners
+   */
+
+  attachEvent(toggleAddressForm, 'click', function (e) {
+    const isControllerHidden = toggleAddressForm.classList.toggle('oculto')
+
+    addressFormBlock.classList.toggle('oculto', !isControllerHidden)
+  }, false)
+
+  attachEvent(addressForm, 'submit', async function (e) {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const isFormAddressValid = [
+      validateAddressNick(),
+      validateAddressCEP(),
+      validateAddressNumber(),
+      validateAddressNeighborhood(),
+      validateAddressCity(),
+      validateAddressState()
+    ].every(valid => valid)
+
+    if (!isFormAddressValid) return
+
+    const response = await registerAddress({
+      cep: fieldAddressCEP.value,
+      tag: fieldAddressNick.value,
+      city: fieldAddressCity.value,
+      state: fieldAddressState.value,
+      address: fieldAddressName.value,
+      number: fieldAddressNumber.value,
+      complement: fieldAddressComplement.value,
+      neighborhood: fieldAddressNeighborhood.value
+    })
+
+    // TODO
+    // Adicionar blocos de erro
+    if (response.error) return
+
+    ADDRESSES.register = response.data
+
+    addressFormBlock.classList.add('oculto')
+    addressContainer.classList.remove('oculto')
+    toggleAddressForm.classList.remove('oculto')
+
+    addressForm.reset()
+  }, false)
+
+  attachEvent(addressForm, 'reset', function () {
+    toggleAddressForm.classList.toggle('oculto', false)
+
+    addressFormBlock.classList.toggle('oculto', true)
+  }, false)
+
+  attachEvent(fieldAddressNick, 'blur', validateAddressNick, false)
+
+  attachEvent(fieldAddressCEP, 'input', async function () {
+    fieldAddressCEP.value = maskCEP(fieldAddressCEP.value)
+
+    const cep = numberOnly(fieldAddressCEP.value)
+
+    if (cep.length < 8) return
+
+    const { error, data } = await getAddressDetails(cep, signal)
+
+    if (error) {
+      fieldAddressCEP.value = ''
+      fieldAddressName.value = ''
+      fieldAddressNeighborhood.value = ''
+      fieldAddressCity.value = ''
+      fieldAddressState.value = '';
+
+      return
+    }
+
+    fieldAddressName.value = data.logradouro
+    fieldAddressNeighborhood.value = data.bairro
+    fieldAddressCity.value = data.localidade
+    fieldAddressState.value = data.uf;
+
+    [
+      fieldAddressName,
+      fieldAddressCity,
+      fieldAddressState,
+      fieldAddressNeighborhood
+    ].forEach(f => {
+      f.dispatchEvent(blurEvent)
+    })
+
+    fieldAddressNumber.focus({
+      preventScroll: false
+    })
+  }, false)
+
+  attachEvent(fieldAddressCEP, 'blur', validateAddressCEP, false)
+
+  attachEvent(fieldAddressName, 'blur', validateAddressName, false)
+
+  attachEvent(fieldAddressNumber, 'blur', validateAddressNumber, false)
+
+  attachEvent(fieldAddressNeighborhood, 'blur', validateAddressNeighborhood, false)
+
+  attachEvent(fieldAddressCity, 'blur', validateAddressCity, false)
+
+  attachEvent(fieldAddressState, 'blur', validateAddressState, false)
 }
