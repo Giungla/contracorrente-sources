@@ -6,6 +6,11 @@
  * (c) 2024-present
  **/
 
+const CURRENCY_FORMAT = new Intl.NumberFormat('pt-BR', {
+  currency: 'BRL',
+  style: 'currency'
+})
+
 const COOKIE_SEPARATOR = '; '
 
 const statesAcronymRE = /^AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MS|MT|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO$/
@@ -276,9 +281,27 @@ function isAuthenticated () {
  */
 
 /**
+ * @typedef BookDetails
+ * @property {number} id
+ * @property {string} name
+ */
+
+/**
+ * @typedef SingleOrder
+ * @property {number}        id
+ * @property {number}        total
+ * @property {null | string} boletourl
+ * @property {number}        created_at
+ * @property {string}        shipping_tracking
+ * @property {string}        transaction_id
+ * @property {BookDetails[]} order_items
+ */
+
+/**
  * @typedef UserResponse
- * @property {UserPayload} user
+ * @property {UserPayload}   user
  * @property {UserAddress[]} addresses
+ * @property {SingleOrder[]}   orders
  */
 
 /**
@@ -357,6 +380,72 @@ function feedAddress (addressNode, { id, cep, address, neighborhood, city, state
 
 /**
  *
+ * @param user_orders {SingleOrder[]}
+ */
+function feedUserOrders (user_orders) {
+  const hasOders = user_orders.length > 0
+
+  const noOrdersWarning = querySelector('[data-wtf-no-registered-orders-error]')
+
+  noOrdersWarning.classList.toggle('oculto', hasOders)
+
+  const orderGroup = querySelector('[data-wtf-order]')
+
+  orderGroup.classList.toggle('oculto', !hasOders)
+
+  if (!hasOders) {
+    orderGroup.innerHTML = ''
+
+    return
+  }
+
+  const orderTemplate = querySelector('[data-wtf-registered-address]').cloneNode(true)
+
+  orderGroup.innerHTML = ''
+
+  for (const order of user_orders) {
+    const currentOrder = orderTemplate.cloneNode(true)
+
+    querySelector('[data-wtf-order-id]', currentOrder).textContent += ': ' + order.transaction_id
+    querySelector('[data-wtf-order-total]', currentOrder).textContent += ': ' + CURRENCY_FORMAT.format(order.total)
+    querySelector('[data-wtf-order-date]', currentOrder).textContent += ': ' + new Date(order.created_at).toLocaleDateString()
+
+    const orderDetails = querySelector('[data-wtf-open-order]', currentOrder)
+
+    orderDetails.setAttribute('target', '_blank')
+    orderDetails.setAttribute('href', `${location.protocol}//${location.hostname}/order-confirmation?order-id=${order.transaction_id}`)
+
+    const booksGroup = querySelector('[data-wtf-order-items-list]', currentOrder)
+    const bookTemplate = querySelector('li', booksGroup).cloneNode(true)
+    booksGroup.innerHTML = ''
+
+    feedOrderItems(order.order_items, booksGroup, bookTemplate)
+
+    orderGroup.appendChild(currentOrder)
+  }
+}
+
+
+/**
+ *
+ * @param products      {BookDetails[]}
+ * @param parentNode    {HTMLUListElement}
+ * @param orderTemplate {HTMLLIElement}
+ */
+function feedOrderItems (products, parentNode, orderTemplate) {
+  for (const book of products) {
+    const currentOrder = orderTemplate.cloneNode(true)
+
+    currentOrder.textContent = book.name
+    currentOrder.setAttribute('data-book-id', book.id)
+
+    parentNode.appendChild(currentOrder)
+  }
+}
+
+
+/**
+ *
  * @typedef PatchUserDetails
  * @property {string | null} name
  * @property {string | null} email
@@ -432,6 +521,8 @@ if (!isAuthenticated()) {
     for (let index = 0, len = data.addresses.length; index < len; index++) {
       ADDRESSES.register = data.addresses[index]
     }
+
+    feedUserOrders(data.orders)
 
     querySelector('[data-wtf-loader]').classList.add('oculto')
   })
