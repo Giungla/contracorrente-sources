@@ -8,6 +8,13 @@
 
 const COOKIE_SEPARATOR = '; '
 
+const GENERAL_HIDDEN_CLASS = 'oculto'
+
+const SCROLL_INTO_VIEW_DEFAULT_ARGS = {
+  block: 'center',
+  behavior: 'smooth'
+}
+
 /**
  * @typedef  {Object}                    cookieOptions
  * @property {Date}                      expires  - optional
@@ -118,10 +125,29 @@ function attachEvent (node, eventName, callback, options) {
   node.addEventListener(eventName, callback, options)
 }
 
+/**
+ *
+ * @param selector {keyof HTMLElementTagNameMap | string}
+ * @param node     {HTMLElement | Document} - optional
+ * @returns        {HTMLElementTagNameMap[keyof HTMLElementTagNameMap] | null}
+ */
+function querySelector (selector, node = document) {
+  return node.querySelector(selector)
+}
+
 function isAuthenticated () {
   const hasAuth = getCookie('__Host-cc-AuthToken')
 
   return !!hasAuth
+}
+
+/**
+ *
+ * @param element {HTMLElement}
+ * @param args    {boolean | ScrollIntoViewOptions}
+ */
+function scrollIntoView (element, args) {
+  element.scrollIntoView(args)
 }
 
 /**
@@ -142,14 +168,27 @@ function isAuthenticated () {
  */
 
 /**
+ * @typedef SignUpErrorResponse
+ * @property {string} authToken
+ * @property {number} maxAge
+ */
+
+/**
+ * @typedef SignUpErrorPayload
+ * @property {string} reason
+ */
+
+/**
  * @typedef SignUpError
- * @property {true} error
+ * @property {string}             traceId
+ * @property {string}             code
+ * @property {string}             message - optional
+ * @property {SignUpErrorPayload} payload
  */
 
 /**
  * @typedef SignUpSuccess
- * @property {false}          error
- * @property {SignUpResponse} data
+ * @property {false} error
  */
 
 /**
@@ -169,34 +208,43 @@ async function postUserInfo (userDetails) {
     cpf_cnpj
   } = userDetails
 
-  const response = await fetch('https://xef5-44zo-gegm.b2.xano.io/api:0FEmfXD_/auth/signup', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      name,
-      email,
-      password,
-      birthday,
-      telephone,
-      consent,
-      optin,
-      cpf_cnpj
+  try {
+    const response = await fetch('https://xef5-44zo-gegm.b2.xano.io/api:0FEmfXD_/auth/signup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        birthday,
+        telephone,
+        consent,
+        optin,
+        cpf_cnpj
+      })
     })
-  })
 
-  if (!response.ok) {
+    if (!response.ok) {
+      const responseText = await response.text()
+
+      return {
+        error: true,
+        data: JSON.parse(responseText)
+      }
+    }
+
+    const data = await response.json()
+
+    return {
+      data,
+      error: false
+    }
+  } catch (e) {
     return {
       error: true
     }
-  }
-
-  const data = await response.json()
-
-  return {
-    data,
-    error: false
   }
 }
 
@@ -211,36 +259,53 @@ if (isAuthenticated()) {
   location.href = '/area-do-usuario'
 } else {
   attachEvent(document, 'DOMContentLoaded', function () {
-    const nameField = document.querySelector('[data-wtf-name]')
-    const nameFieldError = document.querySelector('[data-wtf-name-error]')
+    const signupForm = querySelector('[data-wtf-signup-form]')
+    const generalLoading = querySelector('[data-wtf-loader]')
 
-    const mailField = document.querySelector('[data-wtf-email]')
-    const mailFieldError = document.querySelector('[data-wtf-email-error]')
+    const bodyElement = querySelector('body')
+    const generalErrorMessage = querySelector('[data-wtf-signup-general-error-message]')
+    const accountExistsMessage = querySelector('[data-wtf-signup-already-registered-error-message]')
+    const successfullyCreatedAccountMessage = querySelector('[data-wtf-signup-general-success-message]')
 
-    const birthDayField = document.querySelector('[data-wtf-birthday]')
-    const birthDayFieldError = document.querySelector('[data-wtf-birthday-error]')
+    const nameField = querySelector('[data-wtf-name]')
+    const nameFieldError = querySelector('[data-wtf-name-error]')
 
-    const CPF_CNPJField = document.querySelector('[data-wtf-cpf-cnpj]')
-    const CPF_CNPJFieldError = document.querySelector('[data-wtf-cpf-cnpj-error]')
+    const mailField = querySelector('[data-wtf-email]')
+    const mailFieldError = querySelector('[data-wtf-email-error]')
 
-    const phoneField = document.querySelector('[data-wtf-phone]')
-    const phoneFieldError = document.querySelector('[data-wtf-phone-error]')
+    const birthDayField = querySelector('[data-wtf-birthday]')
+    const birthDayFieldError = querySelector('[data-wtf-birthday-error]')
 
-    const passwordField = document.querySelector('[data-wtf-password]')
-    const passwordFieldError = document.querySelector('[data-wtf-password-error]')
+    const CPF_CNPJField = querySelector('[data-wtf-cpf-cnpj]')
+    const CPF_CNPJFieldError = querySelector('[data-wtf-cpf-cnpj-error]')
 
-    const confirmPasswordField = document.querySelector('[data-wtf-confirm-password]')
-    const confirmPasswordFieldError = document.querySelector('[data-wtf-confirm-passwod-error]')
+    const phoneField = querySelector('[data-wtf-phone]')
+    const phoneFieldError = querySelector('[data-wtf-phone-error]')
 
-    const consentField = document.querySelector('input[data-wtf-consent-terms-and-conditions]')
-    const consentFieldError = document.querySelector('[data-wtf-terms-and-conditions-error]')
+    const passwordField = querySelector('[data-wtf-password]')
+    const passwordFieldError = querySelector('[data-wtf-password-error]')
 
-    const optinField = document.querySelector('input[data-wtf-optin]')
+    const confirmPasswordField = querySelector('[data-wtf-confirm-password]')
+    const confirmPasswordFieldError = querySelector('[data-wtf-confirm-passwod-error]')
 
-    const form = document.querySelector('#wf-form-signup')
+    const consentField = querySelector('input[data-wtf-consent-terms-and-conditions]')
+    const consentFieldError = querySelector('[data-wtf-terms-and-conditions-error]')
+
+    const optinField = querySelector('input[data-wtf-optin]')
+
+    const form = querySelector('#wf-form-signup')
 
     if (!form) {
       throw new Error('[WithTheFlow] Cannot find your form')
+    }
+
+    /**
+     *
+     * @param status {boolean}
+     */
+    function isPageLoading (status) {
+      bodyElement.classList.toggle('noscroll', status)
+      generalLoading.classList.toggle(GENERAL_HIDDEN_CLASS, !status)
     }
 
     /**
@@ -333,7 +398,7 @@ if (isAuthenticated()) {
       const isValidName = words.length > 1 && words.every(word => word.length > 1)
 
       nameField.parentElement.classList.toggle('errormessage', !isValidName)
-      nameFieldError.classList.toggle('oculto', isValidName)
+      nameFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidName)
 
       return [isValidName, 'wtfName']
     }
@@ -346,7 +411,7 @@ if (isAuthenticated()) {
       const isValidMail = mailField.value.match(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/)
 
       mailField.parentElement.classList.toggle('errormessage', !isValidMail)
-      mailFieldError.classList.toggle('oculto', isValidMail)
+      mailFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidMail)
 
       return [isValidMail, 'wtfEmail']
     }
@@ -367,7 +432,7 @@ if (isAuthenticated()) {
       }
 
       CPF_CNPJField.parentElement.classList.toggle('errormessage', !isValid)
-      CPF_CNPJFieldError.classList.toggle('oculto', isValid)
+      CPF_CNPJFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValid)
 
       return [isValid, 'wtfCpfCnpj']
     }
@@ -388,7 +453,7 @@ if (isAuthenticated()) {
       const isValidDate = isRightPattern && !isNaN(getTimeFromDate) && Date.now() > getTimeFromDate
 
       birthDayField.parentElement.classList.toggle('errormessage', !isValidDate)
-      birthDayFieldError.classList.toggle('oculto', isValidDate)
+      birthDayFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidDate)
 
       return [isValidDate, 'wtfBirthday']
     }
@@ -405,7 +470,7 @@ if (isAuthenticated()) {
       const isValidPhone = isValidPattern && !isNonRepeatedDigits
 
       phoneField.parentElement.classList.toggle('errormessage', !isValidPhone)
-      phoneFieldError.classList.toggle('oculto', isValidPhone)
+      phoneFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidPhone)
 
       return [isValidPhone, 'wtfPhone']
     }
@@ -416,7 +481,7 @@ if (isAuthenticated()) {
       PASSWORD_MASK.lastIndex = 0
 
       passwordField.parentElement.classList.toggle('errormessage', !isValidPassword)
-      passwordFieldError.classList.toggle('oculto', isValidPassword)
+      passwordFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidPassword)
 
       confirmPasswordField.value.length > 0 && validateConfirmPasswordField()
 
@@ -433,7 +498,7 @@ if (isAuthenticated()) {
       PASSWORD_MASK.lastIndex = 0
 
       confirmPasswordField.parentElement.classList.toggle('errormessage', !isValidPassword)
-      confirmPasswordFieldError.classList.toggle('oculto', isValidPassword)
+      confirmPasswordFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidPassword)
 
       return [isValidPassword, 'wtfConfirmPassword']
     }
@@ -442,7 +507,7 @@ if (isAuthenticated()) {
       const isValidConsent = consentField.checked
 
       consentField.parentElement.classList.toggle('errormessage', !isValidConsent)
-      consentFieldError.classList.toggle('oculto', isValidConsent)
+      consentFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidConsent)
 
       return [isValidConsent, 'wtfConsentTermsAndConditions']
     }
@@ -508,6 +573,8 @@ if (isAuthenticated()) {
     })
 
     attachEvent(form, 'submit', async function (e) {
+      isPageLoading(true)
+
       e.preventDefault()
       e.stopPropagation()
 
@@ -532,7 +599,17 @@ if (isAuthenticated()) {
         if (!isValid && !cancelRequest) cancelRequest = true
       }
 
-      if (cancelRequest) return
+      if (cancelRequest) {
+        generalErrorMessage.classList.remove(GENERAL_HIDDEN_CLASS)
+
+        isPageLoading(false)
+
+        setTimeout(() => {
+          scrollIntoView(generalErrorMessage, SCROLL_INTO_VIEW_DEFAULT_ARGS)
+        }, 500)
+
+        return
+      }
 
       const response = await postUserInfo({
         name: nameField.value,
@@ -545,16 +622,39 @@ if (isAuthenticated()) {
         cpf_cnpj: CPF_CNPJField.value
       })
 
-      if (response.error === true) return
+      if (response.error && response?.data?.payload?.reason === 'ACCOUNT_EXISTS') {
+        accountExistsMessage.classList.remove(GENERAL_HIDDEN_CLASS)
+        generalErrorMessage.classList.add(GENERAL_HIDDEN_CLASS)
 
-      setCookie('__Host-cc-AuthToken', response.data.authToken, {
-        path: '/',
-        secure: true,
-        sameSite: 'Strict',
-        expires: new Date(response.data.maxAge)
-      })
+        isPageLoading(false)
 
-      location.href = '/area-do-usuario'
+        scrollIntoView(accountExistsMessage, SCROLL_INTO_VIEW_DEFAULT_ARGS)
+
+        return
+      }
+
+      if (response.error) {
+        accountExistsMessage.classList.add(GENERAL_HIDDEN_CLASS)
+        generalErrorMessage.classList.remove(GENERAL_HIDDEN_CLASS)
+
+        isPageLoading(false)
+
+        scrollIntoView(generalErrorMessage, SCROLL_INTO_VIEW_DEFAULT_ARGS)
+
+        return
+      }
+
+      accountExistsMessage.classList.add(GENERAL_HIDDEN_CLASS)
+
+      signupForm.classList.toggle(GENERAL_HIDDEN_CLASS, !response.error)
+      generalErrorMessage.classList.toggle(GENERAL_HIDDEN_CLASS, !response.error)
+      successfullyCreatedAccountMessage.classList.toggle(GENERAL_HIDDEN_CLASS, response.error)
+
+      isPageLoading(false)
+
+      scrollIntoView(successfullyCreatedAccountMessage, SCROLL_INTO_VIEW_DEFAULT_ARGS)
     })
+
+    isPageLoading(false)
   })
 }
