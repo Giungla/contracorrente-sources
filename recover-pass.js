@@ -8,6 +8,8 @@
 
 const COOKIE_SEPARATOR = '; '
 
+const GENERAL_HIDDEN_CLASS = 'oculto'
+
 /**
  * @typedef  {Object}                    cookieOptions
  * @property {Date}                      expires  - optional
@@ -118,10 +120,32 @@ function attachEvent (node, eventName, callback, options) {
   node.addEventListener(eventName, callback, options)
 }
 
+/**
+ *
+ * @param selector {keyof HTMLElementTagNameMap | string}
+ * @param node     {HTMLElement | Document} - optional
+ * @returns        {HTMLElementTagNameMap[keyof HTMLElementTagNameMap] | null}
+ */
+function querySelector (selector, node = document) {
+  return node.querySelector(selector)
+}
+
 function isAuthenticated () {
   const hasAuth = getCookie('__Host-cc-AuthToken')
 
   return !!hasAuth
+}
+
+const bodyElement = querySelector('body')
+const generalLoading = querySelector('[data-wtf-loader]')
+
+/**
+ *
+ * @param status {boolean}
+ */
+function isPageLoading (status) {
+  bodyElement.classList.toggle('noscroll', status)
+  generalLoading.classList.toggle(GENERAL_HIDDEN_CLASS, !status)
 }
 
 if (isAuthenticated()) {
@@ -204,7 +228,7 @@ if (isAuthenticated()) {
   }
 
   attachEvent(document, 'DOMContentLoaded', function () {
-    const mailField = document.querySelector('[data-wtf-email]')
+    const mailField = querySelector('[data-wtf-email]')
     const mailFieldWrapper = mailField.parentElement
     const recoverForm = mailField.closest('form')
 
@@ -221,17 +245,23 @@ if (isAuthenticated()) {
     })
 
     attachEvent(recoverForm, 'submit', async function () {
+      isPageLoading(true)
+
       const response = await sendMagicLink(mailField.value)
 
       if (response.error === true) {
+        isPageLoading(false)
+
         return showGeneralError(true, 2000)
       }
 
       recoverForm.setAttribute('disabled', 'disabled')
 
-      document.querySelector('[data-wtf-success-message]').classList.remove('oculto')
+      querySelector('[data-wtf-success-message]').classList.remove('oculto')
+
+      isPageLoading(false)
     })
 
-    console.log('[WithTheFlow] Your form is running correctly')
+    isPageLoading(false)
   })
 }
