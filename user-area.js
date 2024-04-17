@@ -366,7 +366,8 @@ async function deleteAddress (addressId) {
  * @param addressNode {HTMLElement}
  * @param addressDetails {UserAddress}
  */
-function feedAddress (addressNode, { id, cep, address, neighborhood, city, state, number }) {
+function feedAddress (addressNode, { id, nick, cep, address, neighborhood, city, state, number }) {
+  querySelector('[data-wtf-address-tag]', addressNode).textContent += `: ${nick}`
   querySelector('[data-wtf-zip-code]', addressNode).textContent += `: ${cep}`
   querySelector('[data-wtf-address]', addressNode).textContent += `: ${address}, ${number}`
   querySelector('[data-wtf-neighborhood]', addressNode).textContent += `: ${neighborhood}`
@@ -399,7 +400,7 @@ function feedUserOrders (user_orders) {
     return
   }
 
-  const orderTemplate = querySelector('[data-wtf-registered-address]').cloneNode(true)
+  const orderTemplate = querySelector('[data-wtf-order-template]').cloneNode(true)
 
   orderGroup.innerHTML = ''
 
