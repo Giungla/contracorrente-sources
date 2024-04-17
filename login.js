@@ -1,5 +1,15 @@
 
+'use strict';
+
 const COOKIE_SEPARATOR = '; '
+
+const GENERAL_HIDDEN_CLASS = 'oculto'
+
+const PASSWORD_MASK = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/g
+
+const URLParams = new URLSearchParams(location.search)
+
+const blurEvent = new CustomEvent('blur')
 
 /**
  * @typedef  {Object}                    cookieOptions
@@ -15,6 +25,31 @@ const COOKIE_SEPARATOR = '; '
  * @typedef  {Object} splitCookieObject
  * @property {string} name
  * @property {string} value
+ */
+
+/**
+ * @typedef InvalidCredentials
+ * @property {'username' | 'password'} field
+ */
+
+/**
+ * @typedef InactiveAccount
+ * @property {boolean} error
+ * @property {string} reason
+ */
+
+/**
+ * @typedef AuthError
+ * @property {string} traceId
+ * @property {string} code
+ * @property {string} message
+ * @property {string | InvalidCredentials | InactiveAccount} payload
+ */
+
+/**
+ * @typedef LoginResponse
+ * @property {boolean | null} error
+ * @property {AuthError}      data
  */
 
 /**
@@ -111,6 +146,16 @@ function attachEvent (node, eventName, callback, options) {
   node.addEventListener(eventName, callback, options)
 }
 
+/**
+ *
+ * @param selector {keyof HTMLElementTagNameMap | string}
+ * @param node     {HTMLElement | Document} - optional
+ * @returns        {HTMLElementTagNameMap[keyof HTMLElementTagNameMap] | null}
+ */
+function querySelector (selector, node = document) {
+  return node.querySelector(selector)
+}
+
 function isAuthenticated () {
   const hasAuth = getCookie('__Host-cc-AuthToken')
 
@@ -120,26 +165,31 @@ function isAuthenticated () {
 if (isAuthenticated()) {
   location.href = '/area-do-usuario'
 } else {
-  attachEvent(document, 'DOMContentLoaded', function () {
+  // attachEvent(document, 'DOMContentLoaded', function () {
     // Selecting the elements for email
-    const userField   = document.querySelector('[data-wtf-user]')
-    const userFieldWrapper = document.querySelector('[data-wtf-user-wrapper]')
-    const userErrorWrapper = document.querySelector('[data-wtf-user-error]')
+    const userField   = querySelector('[data-wtf-user]')
+    const userFieldWrapper = querySelector('[data-wtf-user-wrapper]')
+    const userErrorWrapper = querySelector('[data-wtf-user-error]')
 
     if (!userField) {
       throw new Error('[WithTheFlow] Cannot find a field with the \'data-wtf-user\' attribute')
     }
 
+    const bodyElement = querySelector('body')
+    const generalLoading = querySelector('[data-wtf-loader]')
+
     // Selecting the elements for password
-    const passwordField = document.querySelector('[data-wtf-password]')
-    const passwordFieldWrapper = document.querySelector('[data-wtf-password-wrapper]')
-    const passwordErrorWrapper = document.querySelector('[data-wtf-password-error]')
+    const passwordField = querySelector('[data-wtf-password]')
+    const passwordFieldWrapper = querySelector('[data-wtf-password-wrapper]')
+    const passwordErrorWrapper = querySelector('[data-wtf-password-error]')
 
     if (!passwordField) {
       throw new Error('[WithTheFlow] Cannot find a field with the \'data-wtf-password\' attribute')
     }
 
-    const generalMessage = document.querySelector('[data-wtf-general-error-message]')
+    const generalMessage = querySelector('[data-wtf-general-error-message]')
+    const authenticationError = querySelector('[data-wtf-authentication-error-message]')
+    const accountInactiveMessage = querySelector('[data-wtf-confirm-email-error-message]')
 
     const form = userField.closest('form')
 
@@ -147,12 +197,28 @@ if (isAuthenticated()) {
       throw new Error('[WithTheFlow] Cannot find a form wrapping your fields')
     }
 
-    // Function to send login request to the server
+    if (URLParams.get('mail')) {
+      userField.value = URLParams.get('mail')
+
+      passwordField.focus()
+    } else {
+      userField.focus()
+    }
+
     /**
      *
-     * @param email {string}
+     * @param status {boolean}
+     */
+    function isPageLoading (status) {
+      bodyElement.classList.toggle('noscroll', status)
+      generalLoading.classList.toggle(GENERAL_HIDDEN_CLASS, !status)
+    }
+
+    /**
+     *
+     * @param email    {string}
      * @param password {string}
-     * @returns {Promise<void>}
+     * @returns        {Promise<void | LoginResponse>}
      */
     async function loginUser (email, password) {
       try {
@@ -167,6 +233,15 @@ if (isAuthenticated()) {
           })
         })
 
+        if (!response.ok) {
+          const error = await response.text()
+
+          return {
+            error: true,
+            data: JSON.parse(error)
+          }
+        }
+
         const data = await response.json()
 
         setCookie('__Host-cc-AuthToken', data.authToken, {
@@ -178,98 +253,102 @@ if (isAuthenticated()) {
 
         location.href = '/area-do-usuario'
       } catch (error) {
-        generalMessage.style.display = 'flex'
-
-        console.warn('[WithTheFlow] Error during login', error.message)
+        return {
+          error: true,
+          data: {
+            code: '',
+            traceId: '',
+            message: '',
+            payload: ''
+          }
+        }
       }
     }
 
     /**
-     *
-     * @param email {string}
-     * @return      {boolean}
+     * @returns {boolean}
      */
-    function validateEmail (email) {
-      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    function validateMailField () {
+      const isValidMail = userField.value.match(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) !== null
 
-      return re.test(String(email).toLowerCase())
-    }
+      userFieldWrapper.classList.toggle('errormessage', !isValidMail)
+      userErrorWrapper.classList.toggle(GENERAL_HIDDEN_CLASS, isValidMail)
 
-    // Function for password validation
-    /**
-     *
-     * @param password {string}
-     * @returns        {boolean}
-     */
-    function validatePassword (password) {
-      const re = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/
-
-      return re.test(password)
+      return isValidMail
     }
 
     /**
-     *
-     * @param event {Event}
+     * @returns {boolean}
      */
-    function handleFocus (event) {
-      const wrapper = event.target === userField
-        ? userFieldWrapper
-        : passwordFieldWrapper
+    function validatePasswordField () {
+      const isValidPassword = PASSWORD_MASK.test(passwordField.value)
 
-      wrapper.style.border = '1px solid #e39623'
+      PASSWORD_MASK.lastIndex = 0
+
+      passwordFieldWrapper.classList.toggle('errormessage', !isValidPassword)
+      passwordErrorWrapper.classList.toggle(GENERAL_HIDDEN_CLASS, isValidPassword)
+
+      return isValidPassword
     }
 
-    /**
-     *
-     * @param event {Event}
-     */
-    function handleBlur (event) {
-      const isEmailField = event.target === userField
+    attachEvent(userField, 'blur', validateMailField, {
+      passive: true,
+      capture: false
+    })
 
-      const wrapper = isEmailField
-        ? userFieldWrapper
-        : passwordFieldWrapper
-
-      const isValid = isEmailField
-        ? validateEmail(userField.value)
-        : validatePassword(passwordField.value)
-
-      wrapper.style.border = isValid
-        ? '1px solid rgba(233, 233, 233, 0.4)'
-        : '1px solid red'
-
-      wrapper.classList.toggle('errormessage', !isValid)
-
-      wrapper.previousElementSibling.style.display = isValid
-        ? 'none'
-        : 'block'
-    }
-
-    const formFields = [
-      userField,
-      passwordField
-    ]
-
-    for (let index = 0, len = formFields.length; index < len; index++) {
-      attachEvent(formFields[index], 'focus', handleFocus, {
-        passive: true,
-        capture: false
-      })
-
-      attachEvent(formFields[index], 'blur', handleBlur, {
-        passive: true,
-        capture: false
-      })
-    }
+    attachEvent(passwordField, 'blur', validatePasswordField, {
+      passive: true,
+      capture: false
+    })
 
     attachEvent(form, 'submit', async function (e) {
       e.preventDefault()
       e.stopPropagation()
 
-      await loginUser(userField.value, passwordField.value)
+      isPageLoading(true)
+
+      generalMessage.classList.add(GENERAL_HIDDEN_CLASS)
+      authenticationError.classList.add(GENERAL_HIDDEN_CLASS)
+      accountInactiveMessage.classList.add(GENERAL_HIDDEN_CLASS)
+
+      const { error, data } = await loginUser(userField.value, passwordField.value)
+
+      if (error === true) {
+        const isAuthError = authenticationError.classList.toggle(GENERAL_HIDDEN_CLASS, ['username', 'password'].includes(data?.payload?.field))
+        const isInactive = data?.payload?.reason === 'ACCOUNT_NOT_ACTIVE'
+
+        if (isAuthError) {
+          switch (data?.payload?.field) {
+            case "username":
+              userField.value = ''
+              userField.dispatchEvent(blurEvent)
+
+              break
+            case "password":
+              passwordField.value = ''
+              passwordField.dispatchEvent(blurEvent)
+          }
+        }
+
+        authenticationError.classList.toggle('oculto', !isAuthError)
+        accountInactiveMessage.classList.toggle('oculto', !isInactive)
+        generalMessage.classList.toggle('oculto', !(isAuthError && isInactive))
+
+        isPageLoading(false)
+
+        return
+      }
+
+      generalMessage.classList.add(GENERAL_HIDDEN_CLASS)
+      authenticationError.classList.add(GENERAL_HIDDEN_CLASS)
+      accountInactiveMessage.classList.add(GENERAL_HIDDEN_CLASS)
+
+      isPageLoading(false)
     }, false)
 
+    isPageLoading(false)
+
     console.log('[WithTheFlow] Your form is running correctly')
-  })
+  // })
 }
 
