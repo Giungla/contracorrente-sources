@@ -165,7 +165,7 @@ function isAuthenticated () {
 if (isAuthenticated()) {
   location.href = '/area-do-usuario'
 } else {
-  // attachEvent(document, 'DOMContentLoaded', function () {
+  attachEvent(document, 'DOMContentLoaded', function () {
     // Selecting the elements for email
     const userField   = querySelector('[data-wtf-user]')
     const userFieldWrapper = querySelector('[data-wtf-user-wrapper]')
@@ -349,6 +349,6 @@ if (isAuthenticated()) {
     isPageLoading(false)
 
     console.log('[WithTheFlow] Your form is running correctly')
-  // })
+  })
 }
 
