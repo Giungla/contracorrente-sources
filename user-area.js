@@ -217,7 +217,10 @@ function getCookie (name) {
  * @param name {string}
  */
 function deleteCookie (name) {
-  setCookie(name, '', {
+  setCookie(name, '=', {
+    path: '/',
+    secure: true,
+    sameSite: 'Strict',
     expires: new Date(0)
   })
 }
@@ -673,7 +676,7 @@ if (!isAuthenticated()) {
 
     deleteCookie(CONTRACORRENTE_AUTH_COOKIE_NAME)
 
-    location.href = e.target.href
+    location.href = e.currentTarget.href
   }, false)
 
   /**
