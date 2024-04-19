@@ -661,9 +661,12 @@ if (!isAuthenticated()) {
   const logout = querySelector('[data-wtf-logout]')
 
   attachEvent(logout, 'click', function (e) {
+    e.preventDefault()
     e.stopPropagation()
 
     deleteCookie(CONTRACORRENTE_AUTH_COOKIE_NAME)
+
+    location.href = e.target.href
   }, false)
 
   /**
