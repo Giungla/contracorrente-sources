@@ -102,6 +102,8 @@ const ADDRESSES = new Proxy(_ADDRESSES, {
 
         return true
       case 'remove':
+        isPageLoading(true)
+
         try {
           deleteAddress(address.id).then(() => {
             addressContainer.removeChild(querySelector(`[data-address-id="${address.id}"]`))
@@ -111,8 +113,12 @@ const ADDRESSES = new Proxy(_ADDRESSES, {
             const isWarnHide = noAddresses.classList.toggle('oculto', target.list.length > 0)
 
             addressContainer.classList.toggle('oculto', !isWarnHide)
+
+            isPageLoading(false)
           })
-        } catch (e) {}
+        } catch (e) {
+          isPageLoading(false)
+        }
 
         return true
     }
@@ -549,6 +555,7 @@ if (!isAuthenticated()) {
     feedUserOrders(data.orders)
 
     isPageLoading(false)
+    console.log('false')
   })
 
   /**
