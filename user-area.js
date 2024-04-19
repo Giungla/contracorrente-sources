@@ -11,6 +11,8 @@ const CURRENCY_FORMAT = new Intl.NumberFormat('pt-BR', {
   style: 'currency'
 })
 
+const CONTRACORRENTE_AUTH_COOKIE_NAME = '__Host-cc-AuthToken'
+
 const COOKIE_SEPARATOR = '; '
 
 const statesAcronymRE = /^AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MS|MT|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO$/
@@ -204,6 +206,16 @@ function getCookie (name) {
 
 /**
  *
+ * @param name {string}
+ */
+function deleteCookie (name) {
+  setCookie(name, '', {
+    expires: new Date(0)
+  })
+}
+
+/**
+ *
  * @param cookie {string}
  * @returns      {splitCookieObject}
  */
@@ -238,7 +250,7 @@ function querySelector (selector, node = document) {
 }
 
 function isAuthenticated () {
-  const hasAuth = getCookie('__Host-cc-AuthToken')
+  const hasAuth = getCookie(CONTRACORRENTE_AUTH_COOKIE_NAME)
 
   return !!hasAuth
 }
@@ -313,7 +325,7 @@ async function fetchUser () {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': getCookie('__Host-cc-AuthToken')
+      'Authorization': getCookie(CONTRACORRENTE_AUTH_COOKIE_NAME)
     }
   })
 
@@ -340,7 +352,7 @@ async function deleteAddress (addressId) {
   const response = await fetch(`https://xef5-44zo-gegm.b2.xano.io/api:pdkGUSNn/user_address/${addressId}`, {
     method: 'DELETE',
     headers: {
-      'Authorization': getCookie('__Host-cc-AuthToken')
+      'Authorization': getCookie(CONTRACORRENTE_AUTH_COOKIE_NAME)
     }
   })
 
@@ -466,7 +478,7 @@ async function updateUserDetails (userDetails) {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': getCookie('__Host-cc-AuthToken')
+        'Authorization': getCookie(CONTRACORRENTE_AUTH_COOKIE_NAME)
       },
       body: JSON.stringify(userDetails)
     })
@@ -635,6 +647,14 @@ if (!isAuthenticated()) {
   const fieldUserPhoneError = querySelector('[data-wtf-phone-error]')
   const fieldUserPhoneWrapper = querySelector('[data-wtf-phone-wrapper]')
 
+  const logout = querySelector('[data-wtf-logout]')
+
+  attachEvent(logout, 'click', function (e) {
+    e.stopPropagation()
+
+    deleteCookie(CONTRACORRENTE_AUTH_COOKIE_NAME)
+  }, false)
+
   /**
    * start user form listeners
    */
@@ -787,7 +807,7 @@ if (!isAuthenticated()) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': getCookie('__Host-cc-AuthToken')
+          'Authorization': getCookie(CONTRACORRENTE_AUTH_COOKIE_NAME)
         },
         body: JSON.stringify(address)
       })
