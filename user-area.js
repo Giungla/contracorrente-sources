@@ -13,6 +13,8 @@ const CURRENCY_FORMAT = new Intl.NumberFormat('pt-BR', {
 
 const CONTRACORRENTE_AUTH_COOKIE_NAME = '__Host-cc-AuthToken'
 
+const GENERAL_HIDDEN_CLASS = 'oculto'
+
 const COOKIE_SEPARATOR = '; '
 
 const statesAcronymRE = /^AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MS|MT|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO$/
