@@ -249,6 +249,15 @@ function querySelector (selector, node = document) {
   return node.querySelector(selector)
 }
 
+/**
+ *
+ * @param status {boolean}
+ */
+function isPageLoading (status) {
+  querySelector('body').classList.toggle('noscroll', status)
+  querySelector('[data-wtf-loader]').classList.toggle(GENERAL_HIDDEN_CLASS, !status)
+}
+
 function isAuthenticated () {
   const hasAuth = getCookie(CONTRACORRENTE_AUTH_COOKIE_NAME)
 
@@ -537,7 +546,7 @@ if (!isAuthenticated()) {
 
     feedUserOrders(data.orders)
 
-    querySelector('[data-wtf-loader]').classList.add('oculto')
+    isPageLoading(false)
   })
 
   /**
@@ -662,7 +671,13 @@ if (!isAuthenticated()) {
     e.preventDefault()
     e.stopPropagation()
 
-    if ([validateNameField(), validateMailField(), validatePhoneField()].some(status => !status)) return
+    isPageLoading(true)
+
+    if ([validateNameField(), validateMailField(), validatePhoneField()].some(status => !status)) {
+      isPageLoading(false)
+
+      return
+    }
 
     const res = await updateUserDetails({
       name: fieldUserName.value,
@@ -678,6 +693,8 @@ if (!isAuthenticated()) {
       setTimeout(() => {
         generalUserMessage.classList.toggle('oculto', true)
       }, 5000)
+
+      isPageLoading(false)
 
       return
     }
@@ -696,6 +713,8 @@ if (!isAuthenticated()) {
     setTimeout(() => {
       generalUserSuccess.classList.toggle('oculto', true)
     }, 5000)
+
+    isPageLoading(false)
   }, false)
 
   attachEvent(userForm, 'reset', function (e) {
@@ -985,6 +1004,8 @@ if (!isAuthenticated()) {
     e.preventDefault()
     e.stopPropagation()
 
+    isPageLoading(true)
+
     const isFormAddressValid = [
       validateAddressNick(),
       validateAddressCEP(),
@@ -994,7 +1015,11 @@ if (!isAuthenticated()) {
       validateAddressState()
     ].every(valid => valid)
 
-    if (!isFormAddressValid) return
+    if (!isFormAddressValid) {
+      isPageLoading(false)
+
+      return
+    }
 
     const response = await registerAddress({
       cep: fieldAddressCEP.value,
@@ -1009,7 +1034,11 @@ if (!isAuthenticated()) {
 
     // TODO
     // Adicionar blocos de erro
-    if (response.error) return
+    if (response.error) {
+      isPageLoading(false)
+
+      return
+    }
 
     ADDRESSES.register = response.data
 
@@ -1018,6 +1047,8 @@ if (!isAuthenticated()) {
     toggleAddressForm.classList.remove('oculto')
 
     addressForm.reset()
+
+    isPageLoading(false)
   }, false)
 
   attachEvent(addressForm, 'reset', function () {
