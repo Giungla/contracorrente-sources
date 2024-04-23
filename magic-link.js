@@ -183,7 +183,7 @@ if (!urlSearch.get('token')) {
         return
       }
 
-      setCookie('__Host-cc-AuthToken', auth_token, {
+      setCookie(CONTRACORRENTE_AUTH_COOKIE_NAME, auth_token, {
         path: '/',
         secure: true,
         sameSite: 'Strict',
