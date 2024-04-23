@@ -8,6 +8,8 @@
 
 const COOKIE_SEPARATOR = '; '
 
+const CONTRACORRENTE_AUTH_COOKIE_NAME = '__Host-cc-AuthToken'
+
 /**
  * @typedef  {Object}                    cookieOptions
  * @property {Date}                      expires  - optional
@@ -95,6 +97,16 @@ function getCookie (name) {
 
 /**
  *
+ * @param name {string}
+ */
+function deleteCookie (name) {
+  setCookie(name, '=', {
+    expires: new Date(0)
+  })
+}
+
+/**
+ *
  * @param cookie {string}
  * @returns      {splitCookieObject}
  */
@@ -109,13 +121,12 @@ function splitCookie (cookie) {
 
 /**
  *
- * @param node      {HTMLElement | Document}
- * @param eventName {string}
- * @param callback  {EventListener | EventListenerObject}
- * @param options=  {boolean | AddEventListenerOptions}
+ * @param selector {keyof HTMLElementTagNameMap | string}
+ * @param node     {HTMLElement | Document} - optional
+ * @returns        {HTMLElementTagNameMap[keyof HTMLElementTagNameMap] | null}
  */
-function attachEvent (node, eventName, callback, options) {
-  node.addEventListener(eventName, callback, options)
+function querySelector (selector, node = document) {
+  return node.querySelector(selector)
 }
 
 function isAuthenticated () {
@@ -124,21 +135,64 @@ function isAuthenticated () {
   return !!hasAuth
 }
 
-if (isAuthenticated()) {
-  location.href = '/area-do-usuario'
-} else {
-  const urlSearch = new URLSearchParams(location.search)
+/**
+ *
+ * @param magic_token {string}
+ * @returns           {Promise<string | boolean>}
+ */
+async function validateMagicLink (magic_token) {
+  const response = await fetch('https://xef5-44zo-gegm.b2.xano.io/api:SJMva2xT/auth/magic-login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ magic_token })
+  })
 
-  if (!urlSearch.get('token')) {
-    location.href = '/reset-password'
-  } else {
-    setCookie('__Host-cc-AuthToken', urlSearch.get('token'), {
-      path: '/',
-      secure: true,
-      sameSite: 'Strict',
-      expires: new Date(Date.now() + 5_184_000_000)
-    })
-
-    location.href = '/area-do-usuario'
+  if (!response.ok) {
+    return false
   }
+
+  const token = await response.json()
+
+  return token
+}
+
+function handleMagicLinkError () {
+  querySelector('.areadousuario_errormessagemagiclink_envelope').classList.remove('oculto')
+
+  setTimeout(() => {
+    location.href = '/reset-password'
+  }, 6000)
+}
+
+if (isAuthenticated()) {
+  deleteCookie(CONTRACORRENTE_AUTH_COOKIE_NAME)
+}
+
+const urlSearch = new URLSearchParams(location.search)
+
+if (!urlSearch.get('token')) {
+  handleMagicLinkError()
+} else {
+  validateMagicLink(urlSearch.get('token'))
+    .then(auth_token => {
+      if (auth_token === false) {
+        handleMagicLinkError()
+
+        return
+      }
+
+      setCookie('__Host-cc-AuthToken', auth_token, {
+        path: '/',
+        secure: true,
+        sameSite: 'Strict',
+        expires: new Date(Date.now() + 5_184_000_000)
+      })
+
+      location.href = '/area-do-usuario'
+    })
+    .catch(err => {
+      handleMagicLinkError()
+    })
 }
