@@ -130,7 +130,7 @@ function querySelector (selector, node = document) {
 }
 
 function isAuthenticated () {
-  const hasAuth = getCookie('__Host-cc-AuthToken')
+  const hasAuth = getCookie(CONTRACORRENTE_AUTH_COOKIE_NAME)
 
   return !!hasAuth
 }
