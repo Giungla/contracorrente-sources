@@ -10,6 +10,13 @@ const COOKIE_SEPARATOR = '; '
 
 const GENERAL_HIDDEN_CLASS = 'oculto'
 
+const SCROLL_INTO_VIEW_DEFAULT_ARGS = {
+  block: 'center',
+  behavior: 'smooth'
+}
+
+const blurEvent = new CustomEvent('blur')
+
 /**
  * @typedef  {Object}                    cookieOptions
  * @property {Date}                      expires  - optional
@@ -130,6 +137,15 @@ function querySelector (selector, node = document) {
   return node.querySelector(selector)
 }
 
+/**
+ *
+ * @param element {HTMLElement}
+ * @param args    {boolean | ScrollIntoViewOptions}
+ */
+function scrollIntoView (element, args) {
+  element.scrollIntoView(args)
+}
+
 function isAuthenticated () {
   const hasAuth = getCookie('__Host-cc-AuthToken')
 
@@ -157,16 +173,16 @@ if (isAuthenticated()) {
    * @param autoHideTime= {number}
    */
   function showGeneralError (autoHide, autoHideTime) {
-    const generalErrorElement = document.querySelector('[data-wtf-general-error-message]')
+    const generalErrorElement = querySelector('[data-wtf-general-error-message]')
 
     if (!generalErrorElement) return
 
-    generalErrorElement.classList.remove('oculto')
+    generalErrorElement.classList.remove(GENERAL_HIDDEN_CLASS)
 
     if (!autoHide) return
 
     setTimeout(() => {
-      generalErrorElement.classList.add('oculto')
+      generalErrorElement.classList.add(GENERAL_HIDDEN_CLASS)
     }, autoHideTime)
   }
 
@@ -211,48 +227,66 @@ if (isAuthenticated()) {
     }
   }
 
+  const mailField = querySelector('[data-wtf-email]')
+  const mailFieldError = querySelector('[data-wtf-user-error]')
+  const mailFieldWrapper = querySelector('[data-wtf-email-wrapper]')
+
   /**
    *
-   * @param field        {HTMLInputElement}
-   * @param regexmatcher {RegExp}
-   * @param wrapperField {HTMLElement}
-   * @param errorField   {HTMLElement}
+   * @returns {boolean}
    */
-  function blurMailField (field, regexmatcher, wrapperField, errorField) {
-    const isMalformed = !regexmatcher.test(field.value)
+  function blurMailField () {
+    const isMailValid = mailField.value.match(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) !== null
 
-    wrapperField.classList.toggle('errormessage', isMalformed)
-    errorField.style.display = isMalformed
-      ? 'block'
-      : 'none'
+    const isError = mailFieldWrapper.classList.toggle('errormessage', !isMailValid && mailField.value.length > 0)
+    mailFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, !isError)
+
+    return isMailValid
   }
 
   attachEvent(document, 'DOMContentLoaded', function () {
-    const mailField = querySelector('[data-wtf-email]')
-    const mailFieldWrapper = mailField.parentElement
-    const recoverForm = mailField.closest('form')
-
     if (!mailField) {
       throw new Error('[WithTheFlow] Cannot find your e-mail field')
     }
+
+    const recoverForm = mailField.closest('form')
 
     if (!recoverForm) {
       throw new Error('[WithTheFlow] Cannot find a form wrapping your email field')
     }
 
-    attachEvent(mailField, 'blur', function () {
-      blurMailField(mailField, /^[^\s@]+@[^\s@]+\.[^\s@]+$/, mailFieldWrapper, mailFieldWrapper.previousElementSibling)
-    })
+    attachEvent(mailField, 'blur', blurMailField, false)
 
-    attachEvent(recoverForm, 'submit', async function () {
+    attachEvent(recoverForm, 'submit', async function (e) {
+      e.preventDefault()
+      e.stopPropagation()
+
       isPageLoading(true)
+
+      if (!blurMailField()) {
+        isPageLoading(false)
+
+        mailField.dispatchEvent(blurEvent)
+
+        setTimeout(() => {
+          scrollIntoView(querySelector('[data-wtf-general-error-message]'), SCROLL_INTO_VIEW_DEFAULT_ARGS)
+        }, 500)
+
+        return
+      }
 
       const response = await sendMagicLink(mailField.value)
 
       if (response.error === true) {
         isPageLoading(false)
 
-        return showGeneralError(true, 2000)
+        mailField.dispatchEvent(blurEvent)
+
+        setTimeout(() => {
+          scrollIntoView(querySelector('[data-wtf-general-error-message]'), SCROLL_INTO_VIEW_DEFAULT_ARGS)
+        }, 500)
+
+        return showGeneralError(true, 5000)
       }
 
       recoverForm.setAttribute('disabled', 'disabled')
