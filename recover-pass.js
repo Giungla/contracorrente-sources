@@ -297,5 +297,9 @@ if (isAuthenticated()) {
     })
 
     isPageLoading(false)
+
+    mailField.focus({
+      preventScroll: false
+    })
   })
 }
