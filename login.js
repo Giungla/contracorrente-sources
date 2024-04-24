@@ -7,6 +7,11 @@ const GENERAL_HIDDEN_CLASS = 'oculto'
 
 const PASSWORD_MASK = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/g
 
+const SCROLL_INTO_VIEW_DEFAULT_ARGS = {
+  block: 'center',
+  behavior: 'smooth'
+}
+
 const URLParams = new URLSearchParams(location.search)
 
 const blurEvent = new CustomEvent('blur')
@@ -271,8 +276,8 @@ if (isAuthenticated()) {
     function validateMailField () {
       const isValidMail = userField.value.match(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/) !== null
 
-      userFieldWrapper.classList.toggle('errormessage', !isValidMail)
-      userErrorWrapper.classList.toggle(GENERAL_HIDDEN_CLASS, isValidMail)
+      const isError = userFieldWrapper.classList.toggle('errormessage', !isValidMail && userField.value.length > 0)
+      userErrorWrapper.classList.toggle(GENERAL_HIDDEN_CLASS, !isError)
 
       return isValidMail
     }
@@ -285,8 +290,8 @@ if (isAuthenticated()) {
 
       PASSWORD_MASK.lastIndex = 0
 
-      passwordFieldWrapper.classList.toggle('errormessage', !isValidPassword)
-      passwordErrorWrapper.classList.toggle(GENERAL_HIDDEN_CLASS, isValidPassword)
+      const isError = passwordFieldWrapper.classList.toggle('errormessage', !isValidPassword && passwordField.value.length > 0)
+      passwordErrorWrapper.classList.toggle(GENERAL_HIDDEN_CLASS, !isError)
 
       return isValidPassword
     }
@@ -306,6 +311,33 @@ if (isAuthenticated()) {
       e.stopPropagation()
 
       isPageLoading(true)
+
+      const validateFields = [
+        validateNameField,
+        validateMailField
+      ]
+
+      let cancelRequest = false
+
+      for (let index = 0, len = validateFields.length; index < len; index++) {
+        const validator = validateFields[index]
+
+        const isValid = validator?.()
+
+        if (!isValid && !cancelRequest) cancelRequest = true
+      }
+
+      if (cancelRequest) {
+        generalMessage.classList.remove(GENERAL_HIDDEN_CLASS)
+
+        isPageLoading(false)
+
+        setTimeout(() => {
+          scrollIntoView(generalMessage, SCROLL_INTO_VIEW_DEFAULT_ARGS)
+        }, 500)
+
+        return
+      }
 
       generalMessage.classList.add(GENERAL_HIDDEN_CLASS)
       authenticationError.classList.add(GENERAL_HIDDEN_CLASS)
@@ -351,4 +383,3 @@ if (isAuthenticated()) {
     console.log('[WithTheFlow] Your form is running correctly')
   })
 }
-
