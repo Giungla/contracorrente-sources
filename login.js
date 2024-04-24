@@ -313,8 +313,8 @@ if (isAuthenticated()) {
       isPageLoading(true)
 
       const validateFields = [
-        validateNameField,
-        validateMailField
+        validateMailField,
+        validatePasswordField
       ]
 
       let cancelRequest = false
@@ -383,3 +383,4 @@ if (isAuthenticated()) {
     console.log('[WithTheFlow] Your form is running correctly')
   })
 }
+
