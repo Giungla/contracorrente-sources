@@ -159,7 +159,7 @@ async function validateMagicLink (magic_token) {
 }
 
 function handleMagicLinkError () {
-  querySelector('.areadousuario_errormessagemagiclink_envelope').classList.remove('oculto')
+  querySelector('[data-wtf-magic-link-general-error-message]').classList.remove('oculto')
 
   setTimeout(() => {
     location.href = '/reset-password'
@@ -196,3 +196,4 @@ if (!urlSearch.get('token')) {
       handleMagicLinkError()
     })
 }
+
