@@ -269,27 +269,35 @@ if (isAuthenticated()) {
 
     const nameField = querySelector('[data-wtf-name]')
     const nameFieldError = querySelector('[data-wtf-name-error]')
+    const nameFieldWrapper = querySelector('[data-wtf-name-wrapper]')
 
     const mailField = querySelector('[data-wtf-email]')
     const mailFieldError = querySelector('[data-wtf-email-error]')
+    const mailFieldWrapper = querySelector('[data-wtf-email-wrapper]')
 
     const birthDayField = querySelector('[data-wtf-birthday]')
     const birthDayFieldError = querySelector('[data-wtf-birthday-error]')
+    const birthDayFieldWrapper = querySelector('[data-wtf-birthday-wrapper]')
 
     const CPF_CNPJField = querySelector('[data-wtf-cpf-cnpj]')
     const CPF_CNPJFieldError = querySelector('[data-wtf-cpf-cnpj-error]')
+    const CPF_CNPJFieldWrapper = querySelector('[data-wtf-cpf-cnpj-wrapper]')
 
     const phoneField = querySelector('[data-wtf-phone]')
     const phoneFieldError = querySelector('[data-wtf-phone-error]')
+    const phoneFieldWrapper = querySelector('[data-wtf-phone-wrapper]')
 
     const passwordField = querySelector('[data-wtf-password]')
     const passwordFieldError = querySelector('[data-wtf-password-error]')
+    const passwordFieldWrapper = querySelector('[data-wtf-password-wrapper]')
 
     const confirmPasswordField = querySelector('[data-wtf-confirm-password]')
     const confirmPasswordFieldError = querySelector('[data-wtf-confirm-passwod-error]')
+    const confirmPasswordFieldWrapper = querySelector('[data-wtf-confirm-password-wraper]')
 
     const consentField = querySelector('input[data-wtf-consent-terms-and-conditions]')
     const consentFieldError = querySelector('[data-wtf-terms-and-conditions-error]')
+    const consentFieldWrapper = querySelector('[data-wtf-consent-terms-and-conditions-wrapper]')
 
     const optinField = querySelector('input[data-wtf-optin]')
 
@@ -397,8 +405,8 @@ if (isAuthenticated()) {
       const words = nameField.value.split(' ')
       const isValidName = words.length > 1 && words.every(word => word.length > 1)
 
-      nameField.parentElement.classList.toggle('errormessage', !isValidName)
-      nameFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidName)
+      const isError = nameFieldWrapper.classList.toggle('errormessage', !isValidName && nameField.value.length > 0)
+      nameFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, !isError)
 
       return [isValidName, 'wtfName']
     }
@@ -410,8 +418,8 @@ if (isAuthenticated()) {
     function validateMailField () {
       const isValidMail = mailField.value.match(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/)
 
-      mailField.parentElement.classList.toggle('errormessage', !isValidMail)
-      mailFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidMail)
+      const isError = mailFieldWrapper.classList.toggle('errormessage', !isValidMail && mailField.value.length > 0)
+      mailFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, !isError)
 
       return [isValidMail, 'wtfEmail']
     }
@@ -423,7 +431,7 @@ if (isAuthenticated()) {
     function validateCPFCNPJField () {
       const cleanValue = CPF_CNPJField.value.replace(/\D+/g, '')
 
-      let isValid
+      let isValid = false
 
       if (cleanValue.length < 12) {
         isValid = CPF_MASK.test(cleanValue) && validateCPF(cleanValue)
@@ -431,8 +439,8 @@ if (isAuthenticated()) {
         isValid = CNPJ_MASK.test(cleanValue) && validateCNPJ(cleanValue)
       }
 
-      CPF_CNPJField.parentElement.classList.toggle('errormessage', !isValid)
-      CPF_CNPJFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValid)
+      const isError =  CPF_CNPJFieldWrapper.classList.toggle('errormessage', !isValid && CPF_CNPJField.value.length > 0)
+      CPF_CNPJFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, !isError)
 
       return [isValid, 'wtfCpfCnpj']
     }
@@ -452,8 +460,8 @@ if (isAuthenticated()) {
 
       const isValidDate = isRightPattern && !isNaN(getTimeFromDate) && Date.now() > getTimeFromDate
 
-      birthDayField.parentElement.classList.toggle('errormessage', !isValidDate)
-      birthDayFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidDate)
+      const isError = birthDayFieldWrapper.classList.toggle('errormessage', !isValidDate && birthDayField.value.length > 0)
+      birthDayFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, !isError)
 
       return [isValidDate, 'wtfBirthday']
     }
@@ -469,8 +477,8 @@ if (isAuthenticated()) {
 
       const isValidPhone = isValidPattern && !isNonRepeatedDigits
 
-      phoneField.parentElement.classList.toggle('errormessage', !isValidPhone)
-      phoneFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidPhone)
+      const isError = phoneFieldWrapper.classList.toggle('errormessage', !isValidPhone && phoneField.value.length > 0)
+      phoneFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, !isError)
 
       return [isValidPhone, 'wtfPhone']
     }
@@ -480,8 +488,8 @@ if (isAuthenticated()) {
 
       PASSWORD_MASK.lastIndex = 0
 
-      passwordField.parentElement.classList.toggle('errormessage', !isValidPassword)
-      passwordFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidPassword)
+      const isError = passwordFieldWrapper.classList.toggle('errormessage', !isValidPassword && passwordField.value.length > 0)
+      passwordFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, !isError)
 
       confirmPasswordField.value.length > 0 && validateConfirmPasswordField()
 
@@ -497,8 +505,8 @@ if (isAuthenticated()) {
 
       PASSWORD_MASK.lastIndex = 0
 
-      confirmPasswordField.parentElement.classList.toggle('errormessage', !isValidPassword)
-      confirmPasswordFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidPassword)
+      const isError = confirmPasswordFieldWrapper.classList.toggle('errormessage', !isValidPassword && confirmPasswordField.value.length > 0)
+      confirmPasswordFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, !isError)
 
       return [isValidPassword, 'wtfConfirmPassword']
     }
@@ -506,7 +514,7 @@ if (isAuthenticated()) {
     function validateConsentField () {
       const isValidConsent = consentField.checked
 
-      consentField.parentElement.classList.toggle('errormessage', !isValidConsent)
+      consentFieldWrapper.classList.toggle('errormessage', !isValidConsent)
       consentFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, isValidConsent)
 
       return [isValidConsent, 'wtfConsentTermsAndConditions']
@@ -656,5 +664,9 @@ if (isAuthenticated()) {
     })
 
     isPageLoading(false)
+
+    nameField.focus({
+      preventScroll: false
+    })
   })
 }
