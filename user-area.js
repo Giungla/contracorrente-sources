@@ -327,6 +327,7 @@ function isAuthenticated () {
  * @property {string}        shipping_tracking
  * @property {string}        transaction_id
  * @property {BookDetails[]} order_items
+ * @property {boolean}       pago
  */
 
 /**
@@ -441,7 +442,8 @@ function feedUserOrders (user_orders) {
 
     querySelector('[data-wtf-order-id]', currentOrder).textContent += ': ' + order.transaction_id
     querySelector('[data-wtf-order-total]', currentOrder).textContent += ': ' + CURRENCY_FORMAT.format(order.total)
-    querySelector('[data-wtf-order-date]', currentOrder).textContent += ': ' + new Date(order.created_at).toLocaleDateString()
+    querySelector('[data-wtf-order-date]', currentOrder).textContent += ': ' + new Date(order.created_at).toLocaleDateString('pt-BR')
+    querySelector('[data-wtf-order-payment-status]', currentOrder).textContent += ': ' + (order.pago ? 'Pago' : 'Em aberto')
 
     const orderDetails = querySelector('[data-wtf-open-order]', currentOrder)
 
