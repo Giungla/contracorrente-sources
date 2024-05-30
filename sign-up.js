@@ -135,6 +135,17 @@ function querySelector (selector, node = document) {
   return node.querySelector(selector)
 }
 
+/**
+ *
+ * @param text {string}
+ * @returns    {string}
+ */
+function normalizeText (text) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function isAuthenticated () {
   const hasAuth = getCookie('__Host-cc-AuthToken')
 
@@ -402,8 +413,7 @@ if (isAuthenticated()) {
     }
 
     function validateNameField () {
-      const words = nameField.value.split(' ')
-      const isValidName = words.length > 1 && words.every(word => word.length > 1)
+      const isValidName = /^(\w{2,})(\s+(\w+))+$/.test(normalizeText(nameField.value).trim().replace(/\s{2,}/g, ' '))
 
       const isError = nameFieldWrapper.classList.toggle('errormessage', !isValidName && nameField.value.length > 0)
       nameFieldError.classList.toggle(GENERAL_HIDDEN_CLASS, !isError)
