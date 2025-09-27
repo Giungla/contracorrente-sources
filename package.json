@@ -1,0 +1,27 @@
+{
+  "name": "contracorrente-sources",
+  "license": "UNLICENSED",
+  "version": "1.0.0",
+  "description": "",
+  "devDependencies": {
+    "terser": "^5.43.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.3",
+    "vue": "^3.5.14"
+  },
+  "engines": {
+    "node": "22.17.0",
+    "npm": "10.9.2",
+    "yarn": "1.22.22"
+  },
+  "scripts": {
+    "tsup-pix-page": "tsup src/pix-process.ts --format iife --minify terser --treeshake --out-dir dev",
+    "tsup-pix-page-prod": "node build-commands/build-for-production.js --name=pix-process",
+    "tsup-pix-page-both": "yarn tsup-pix-page && yarn tsup-pix-page-prod"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Giungla/contracorrente-sources.git"
+  },
+  "private": true
+}
