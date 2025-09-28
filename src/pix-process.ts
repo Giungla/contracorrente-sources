@@ -42,6 +42,8 @@ const PROCESS_PAYMENT_URL = `${XANO_BASE_URL}/api:y0t3fimN`
 
 const ORDER_CONFIRM_URL = '/order-confirmation'
 
+const orderParameter = 'order-id'
+
 const ContraCorrentOrderPage = createApp({
   name: 'PIXProcessPage',
 
@@ -68,7 +70,7 @@ const ContraCorrentOrderPage = createApp({
 
     const searchParams = new URLSearchParams(location.search)
 
-    const transactionId = searchParams.get('order-id')
+    const transactionId = searchParams.get(orderParameter)
 
     if (!transactionId) {
       location.href = buildURL('/', {
@@ -79,8 +81,6 @@ const ContraCorrentOrderPage = createApp({
     }
 
     const response = await this.getOrder(transactionId)
-
-    console.log(response)
 
     if (!response.succeeded || response.data.payment_method !== 'pix') {
       location.href = buildURL('/', {
@@ -99,7 +99,7 @@ const ContraCorrentOrderPage = createApp({
     if (response.data.pago) {
       setTimeout(() => {
         location.href = buildURL(ORDER_CONFIRM_URL, {
-          order: transactionId
+          [orderParameter]: transactionId
         })
       }, 5000)
 
@@ -139,7 +139,7 @@ const ContraCorrentOrderPage = createApp({
 
         setTimeout(() => {
           location.href = buildURL(ORDER_CONFIRM_URL, {
-            order: orderId
+            [orderParameter]: orderId
           })
         }, 5000)
       })
@@ -179,8 +179,6 @@ const ContraCorrentOrderPage = createApp({
 
         return postSuccessResponse.call(response, data)
       } catch (e) {
-        console.log('inside catch', e)
-
         return postErrorResponse(defaultErrorMessage)
       }
     },
