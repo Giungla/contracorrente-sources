@@ -236,7 +236,7 @@ const ContraCorrentOrderPage = createApp({
 
       return BRLFormatter.format(
         order
-          ? (order.total / 100)
+          ? order.total
           : 0
       )
     },

@@ -123,7 +123,7 @@ export interface PixOrderData {
   /**
    * Valor total deste pedido
    */
-  total: string;
+  total: number;
   /**
    * Indica se o pedido está ou não pago
    */
