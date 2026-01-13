@@ -30,7 +30,7 @@ import {
   addAttribute,
   isPageLoading,
   querySelector,
-  safeParseJson,
+  safeParseJson, stringify,
 } from '../utils/dom'
 
 import {
@@ -49,6 +49,10 @@ import {
   buildRequestOptions,
 } from '../utils/requestResponse'
 
+import {
+  HttpMethod,
+} from '../types/http'
+
 const DEFAULT_TIME = '00:00:00'
 
 const PROCESS_PAYMENT_URL = `${XANO_BASE_URL}/api:y0t3fimN`
@@ -56,6 +60,30 @@ const PROCESS_PAYMENT_URL = `${XANO_BASE_URL}/api:y0t3fimN`
 const ORDER_CONFIRM_URL = '/order-confirmation'
 
 const orderParameter = 'order-id'
+
+async function logError (payload: object = {}): Promise<ResponsePattern<any>> {
+  const defaultErrorMessage = 'Falha ao enviar o log de erro'
+
+  try {
+    const response = await fetch(`${XANO_BASE_URL}/api:ltSOgTnO/beacon`, {
+      ...buildRequestOptions([], HttpMethod.POST),
+      body: stringify(payload),
+      keepalive: true,
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+
+      return postErrorResponse(error?.message)
+    }
+
+    const data = await response.json()
+
+    return postSuccessResponse(data)
+  } catch (e) {
+    return postErrorResponse(defaultErrorMessage)
+  }
+}
 
 const ContraCorrenteOrderPage = createApp({
   name: 'PIXProcessPage',
@@ -94,6 +122,11 @@ const ContraCorrenteOrderPage = createApp({
     const response = await this.getOrder(transactionId)
 
     if (!response.succeeded) {
+      logError({
+        ...response,
+        reason: 'request_response_failed',
+      })
+
       location.href = buildURL(SLASH_STRING, {
         reason: 'request_response_failed',
       })
@@ -102,6 +135,8 @@ const ContraCorrenteOrderPage = createApp({
     }
 
     if (response.data.payment_method !== 'pix') {
+      logError(response)
+
       location.href = buildURL(SLASH_STRING, {
         reason: 'wrong_payment_method',
       })
