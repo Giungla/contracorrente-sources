@@ -233,6 +233,8 @@ const ContraCorrenteOrderPage = createApp({
 
         return postSuccessResponse.call<Response, [T, ResponsePatternCallback?], FunctionSucceededPattern<T>>(response, data)
       } catch (e) {
+        typeof e === 'object' && logError({ e })
+
         return postErrorResponse(defaultErrorMessage)
       }
     },
