@@ -1,18 +1,15 @@
 
-import type {
-  Nullable,
-  ResponsePattern,
-  ISinglePaymentKey,
-  ComputedReturnValues,
+import {
+  type Nullable,
+  type ResponsePattern,
+  type ComputedReturnValues,
 } from './global'
-
-import { type ShallowRef } from "vue"
 
 export interface ContraCorrentePixProcessSetup {
   /**
    * Indica se o navegador tem suporte ao EventSource
    */
-  hasEventSource: ShallowRef<Nullable<boolean>>;
+  hasEventSource: Ref<Nullable<boolean>>;
 }
 
 export interface ContraCorrentePixProcessData {
@@ -119,7 +116,7 @@ export interface PixOrderData {
   /**
    * Meio de pagamento usado no pedido
    */
-  payment_method: ISinglePaymentKey;
+  payment_method: PaymentTypes;
   /**
    * Valor total deste pedido
    */

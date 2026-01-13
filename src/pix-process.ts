@@ -1,40 +1,53 @@
 
-import type {
-  PixOrderData,
-  PixOrderDataPoll,
-  ContraCorrentePixProcessData,
-  ContraCorrentePixProcessWatch,
-  ContraCorrentePixProcessSetup,
-  ContraCorrentePixProcessContext,
-  ContraCorrentePixProcessMethods,
-  ContraCorrentePixOrderComputedDefinition,
+import {
+  type PixOrderData,
+  type PixOrderDataPoll,
+  type ContraCorrentePixProcessData,
+  type ContraCorrentePixProcessWatch,
+  type ContraCorrentePixProcessSetup,
+  type ContraCorrentePixProcessContext,
+  type ContraCorrentePixProcessMethods,
+  type ContraCorrentePixOrderComputedDefinition,
 } from '../types/pix-process'
 
-import type {
-  Nullable,
-  ResponsePattern,
+import {
+  type FunctionSucceededPattern,
+  type Nullable,
+  type ResponsePattern,
+  type ResponsePatternCallback,
 } from '../types/global'
 
 const {
+  ref,
   createApp,
 } = window.Vue
 
 import {
   NULL_VALUE,
-  EMPTY_STRING,
-  BRLFormatter,
-  XANO_BASE_URL,
   isNull,
   buildURL,
-  safeParseJson,
-  addAttribute,
   getAttribute,
+  addAttribute,
   isPageLoading,
   querySelector,
+  safeParseJson,
+} from '../utils/dom'
+
+import {
+  EMPTY_STRING,
+  SLASH_STRING,
+  XANO_BASE_URL,
+} from '../utils/consts'
+
+import {
+  BRLFormatter,
+} from '../utils/mask'
+
+import {
   postErrorResponse,
   postSuccessResponse,
   buildRequestOptions,
-} from '../utils'
+} from '../utils/requestResponse'
 
 const DEFAULT_TIME = '00:00:00'
 
@@ -44,14 +57,12 @@ const ORDER_CONFIRM_URL = '/order-confirmation'
 
 const orderParameter = 'order-id'
 
-const ContraCorrentOrderPage = createApp({
+const ContraCorrenteOrderPage = createApp({
   name: 'PIXProcessPage',
 
   setup () {
-    const hasEventSource = window.Vue.shallowRef<Nullable<boolean>>(NULL_VALUE)
-
     return {
-      hasEventSource
+      hasEventSource: ref<Nullable<boolean>>(NULL_VALUE),
     }
   },
 
@@ -62,7 +73,7 @@ const ContraCorrentOrderPage = createApp({
       hasCopied: false,
       order: NULL_VALUE,
       nowInterval: NULL_VALUE,
-    }
+    } satisfies ContraCorrentePixProcessData
   },
 
   async created (): Promise<void> {
@@ -73,7 +84,7 @@ const ContraCorrentOrderPage = createApp({
     const transactionId = searchParams.get(orderParameter)
 
     if (!transactionId) {
-      location.href = buildURL('/', {
+      location.href = buildURL(SLASH_STRING, {
         reason: 'no_transaction_id'
       })
 
@@ -82,8 +93,16 @@ const ContraCorrentOrderPage = createApp({
 
     const response = await this.getOrder(transactionId)
 
-    if (!response.succeeded || response.data.payment_method !== 'pix') {
-      location.href = buildURL('/', {
+    if (!response.succeeded) {
+      location.href = buildURL(SLASH_STRING, {
+        reason: 'request_response_failed',
+      })
+
+      return
+    }
+
+    if (response.data.payment_method !== 'pix') {
+      location.href = buildURL(SLASH_STRING, {
         reason: 'wrong_payment_method',
       })
 
@@ -161,7 +180,7 @@ const ContraCorrentOrderPage = createApp({
       this.order.expired = expired
     },
 
-    async getOrder (orderId: string): Promise<ResponsePattern<PixOrderData>> {
+    async getOrder <T extends PixOrderData> (orderId: string): Promise<ResponsePattern<T>> {
       const defaultErrorMessage = 'Falha ao capturar o pedido'
 
       try {
@@ -175,9 +194,9 @@ const ContraCorrentOrderPage = createApp({
           return postErrorResponse.call(response, error?.message ?? defaultErrorMessage)
         }
 
-        const data: PixOrderData = await response.json()
+        const data: T = await response.json()
 
-        return postSuccessResponse.call(response, data)
+        return postSuccessResponse.call<Response, [T, ResponsePatternCallback?], FunctionSucceededPattern<T>>(response, data)
       } catch (e) {
         return postErrorResponse(defaultErrorMessage)
       }
@@ -208,7 +227,7 @@ const ContraCorrentOrderPage = createApp({
     },
 
     setQRImage (): void {
-      const QRImage = querySelector('[data-wtf-qr-code-image]')
+      const QRImage = querySelector('[data-wtf-qr-code-image]') as Nullable<HTMLImageElement>
 
       if (!QRImage) return
 
@@ -217,7 +236,7 @@ const ContraCorrentOrderPage = createApp({
       addAttribute(
         QRImage,
         'src',
-        this.order?.qrcode ?? getAttribute(QRImage, 'src')
+        this.order?.qrcode ?? getAttribute(QRImage, 'src') ?? EMPTY_STRING
       )
     },
 
@@ -287,7 +306,15 @@ const ContraCorrentOrderPage = createApp({
   watch: ContraCorrentePixProcessWatch;
 } & ThisType<ContraCorrentePixProcessContext>)
 
-ContraCorrentOrderPage.mount(querySelector('#pixProcess'))
+const pixProcessElement = querySelector('#pixProcess') as Nullable<globalThis.Element>
+
+if (!pixProcessElement) {
+  location.href = buildURL('/', {
+    reason: 'pix_element_not_found',
+  })
+} else {
+  ContraCorrenteOrderPage.mount(pixProcessElement)
+}
 
 window.addEventListener('pageshow', (e: PageTransitionEvent) => {
   if (e.persisted) window.location.reload()

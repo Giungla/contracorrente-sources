@@ -1,29 +1,37 @@
 
-import type {
-  HttpMethod,
-  FunctionErrorPattern,
-  FunctionSucceededPattern,
+import {
+  type FunctionErrorPattern,
+  type FunctionSucceededPattern,
+  type ResponsePatternCallback,
 } from '../types/global'
 
 import {
   buildURL,
+} from './dom'
+
+import {
   getCookie,
-  setCookie,
-  timestampDays
-} from "./index"
+  // setCookie,
+} from './cookie'
+
+// import {
+//   timestampDays,
+// } from './dates'
+//
+// import {
+//   CookieSameSite,
+// } from '../types/cookie'
+
+import {
+  HttpMethod,
+  type HttpMethods,
+} from '../types/http'
 
 export const UNAUTHENTICATED_RESPONSE_STATUS = 401
 
 export const AUTH_COOKIE_NAME = '__Host-cc-AuthToken'
 export const CC_SESSION_COOKIE_NAME = '__Host-Cc-Session-Cookie'
 export const CC_SESSION_HEADER_NAME = 'X-Cc-Session'
-
-export const GET = 'GET'
-export const HEAD = 'HEAD'
-export const POST = 'POST'
-export const PUT = 'PUT'
-export const PATCH = 'PATCH'
-export const DELETE = 'DELETE'
 
 function handleResponseStatus (response?: Response): void {
   if (!response || response.status !== UNAUTHENTICATED_RESPONSE_STATUS) return
@@ -34,41 +42,74 @@ function handleResponseStatus (response?: Response): void {
 }
 
 export function handleSession (response?: Response): void {
-  const session = response?.headers.get(CC_SESSION_HEADER_NAME)
-
-  if (!session) return
-
-  setCookie(CC_SESSION_COOKIE_NAME, session, {
-    path: '/',
-    secure: true,
-    sameSite: 'Strict',
-    expires: new Date(Date.now() + timestampDays(14)),
-  })
+  // const session = response?.headers.get(CC_SESSION_HEADER_NAME)
+  //
+  // if (!session) return
+  //
+  // setCookie(CC_SESSION_COOKIE_NAME, session, {
+  //   path: '/',
+  //   secure: true,
+  //   sameSite: CookieSameSite.STRICT,
+  //   expires: new Date(Date.now() + timestampDays(14)),
+  // })
 }
 
-export function postErrorResponse (this: Response | undefined, message: string, skipRedirectIfUnauthenticated: boolean = false): FunctionErrorPattern {
-  // handleSession(this)
-  //
-  // if (!skipRedirectIfUnauthenticated) {
-  //   handleResponseStatus(this)
-  // }
+export function postErrorResponse (
+  message: string,
+  skipRedirectIfUnauthenticated?: boolean,
+  callback?: ResponsePatternCallback,
+): FunctionErrorPattern;
+export function postErrorResponse (
+  this: Response,
+  message: string,
+  skipRedirectIfUnauthenticated?: boolean,
+  callback?: ResponsePatternCallback,
+): FunctionErrorPattern;
+export function postErrorResponse (
+  this: Response | undefined,
+  message: string,
+  skipRedirectIfUnauthenticated: boolean = false,
+  callback?: ResponsePatternCallback,
+): FunctionErrorPattern {
+  handleSession(this)
+
+  if (!skipRedirectIfUnauthenticated) {
+    handleResponseStatus(this)
+  }
+
+  callback?.()
 
   return {
     message,
-    succeeded: false
+    succeeded: false,
   }
 }
 
-export function postSuccessResponse <T> (this: Response | undefined, response: T): FunctionSucceededPattern<T> {
-  // handleSession(this)
+export function postSuccessResponse <T extends unknown> (
+  response: T,
+  callback?: ResponsePatternCallback,
+): FunctionSucceededPattern<T>;
+export function postSuccessResponse <T extends unknown> (
+  this: Response,
+  response: T,
+  callback?: ResponsePatternCallback,
+): FunctionSucceededPattern<T>;
+export function postSuccessResponse <T extends unknown> (
+  this: Response | undefined,
+  response: T,
+  callback?: ResponsePatternCallback,
+): FunctionSucceededPattern<T> {
+  handleSession(this)
+
+  callback?.()
 
   return {
     data: response,
-    succeeded: true
+    succeeded: true,
   }
 }
 
-export function buildRequestOptions (headers: [string, string][] = [], method: HttpMethod = GET): Pick<RequestInit, 'method' | 'headers'> {
+export function buildRequestOptions (headers: [string, string][] = [], method: HttpMethods = HttpMethod.GET): Pick<RequestInit, 'method' | 'headers'> {
   const applicationJson = 'application/json'
 
   const _headers = new Headers({

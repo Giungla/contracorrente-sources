@@ -1,7 +1,9 @@
 
+type Vue = typeof import('vue')
+
 declare global {
   interface Window {
-    Vue: typeof import('vue'),
+    Vue: Vue,
   }
 }
 
@@ -18,14 +20,6 @@ export interface FunctionErrorPattern {
 }
 
 export type ResponsePattern <T> = FunctionSucceededPattern<T> | FunctionErrorPattern;
-
-export type HttpMethod =
-  | 'GET'
-  | 'HEAD'
-  | 'POST'
-  | 'PUT'
-  | 'PATCH'
-  | 'DELETE';
 
 export type ComputedReturnValues <T> = {
   [K in keyof T]: T[K] extends () => infer R ? R : never;
@@ -124,4 +118,48 @@ export interface InstallmentOptionPrice {
    * Taxa deste parcelamento
    */
   interestFree: boolean;
+}
+
+export type ResponsePatternCallback = (...params: any) => void;
+
+export interface PaginateSchema <T> {
+  /**
+   * Dados retornados na consulta
+   */
+  items: T[];
+
+  /**
+   * Indica o offset usado na consulta
+   */
+  offset: number;
+
+  /**
+   * Indica qual a página retornada na consulta
+   */
+  curPage: number;
+
+  /**
+   * Indica a próxima página a ser consultada, se houver
+   */
+  nextPage: Nullable<number>;
+
+  /**
+   * Indica qual a página anterior a ser consultada, se houver
+   */
+  prevPage: Nullable<number>;
+
+  /**
+   * Quantidade de páginas existentes na consulta enviada
+   */
+  pageTotal: number;
+
+  /**
+   * Indica quantos itens a consulta enviada resultou (apenas uma porção está na página atual)
+   */
+  itemsTotal: number;
+
+  /**
+   * Indica quantos itens retornaram na consulta/página atual
+   */
+  itemsReceived: number;
 }
