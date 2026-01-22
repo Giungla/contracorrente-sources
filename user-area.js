@@ -75,7 +75,6 @@ const USER = new Proxy(_USER, {
 
 const ADDRESSES = new Proxy(_ADDRESSES, {
   /**
-   *
    * @param target   {Object}
    * @param property {string | symbol | number}
    * @param address  {UserAddress}
@@ -444,6 +443,11 @@ function feedUserOrders (user_orders) {
     querySelector('[data-wtf-order-total]', currentOrder).textContent += ': ' + CURRENCY_FORMAT.format(order.total)
     querySelector('[data-wtf-order-date]', currentOrder).textContent += ': ' + new Date(order.created_at).toLocaleDateString('pt-BR')
     querySelector('[data-wtf-order-payment-status]', currentOrder).textContent += ': ' + (order.pago ? 'Pago' : 'Em aberto')
+    if (order.shipping_tracking) {
+      querySelector('[data-wtf-order-tracking]', currentOrder).textContent += ': ' + order.shipping_tracking
+    } else {
+      querySelector('[data-wtf-order-tracking]', currentOrder)?.classList.add(GENERAL_HIDDEN_CLASS)
+    }
 
     const orderDetails = querySelector('[data-wtf-open-order]', currentOrder)
 
