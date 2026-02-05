@@ -509,6 +509,7 @@ function renderFieldCEP () {
   }
 
   state.shippingCEP = NULL_VALUE
+  state.deliveryPrice = NULL_VALUE
 
   addClass(errorMessageCEP, GENERAL_HIDDEN_CLASS)
   removeClass(calcShippingContainer, GENERAL_HIDDEN_CLASS)
