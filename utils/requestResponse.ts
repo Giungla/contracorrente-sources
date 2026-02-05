@@ -11,16 +11,16 @@ import {
 
 import {
   getCookie,
-  // setCookie,
+  setCookie,
 } from './cookie'
 
-// import {
-//   timestampDays,
-// } from './dates'
-//
-// import {
-//   CookieSameSite,
-// } from '../types/cookie'
+import {
+  timestampDays,
+} from './dates'
+
+import {
+  CookieSameSite,
+} from '../types/cookie'
 
 import {
   HttpMethod,
@@ -42,16 +42,16 @@ function handleResponseStatus (response?: Response): void {
 }
 
 export function handleSession (response?: Response): void {
-  // const session = response?.headers.get(CC_SESSION_HEADER_NAME)
-  //
-  // if (!session) return
-  //
-  // setCookie(CC_SESSION_COOKIE_NAME, session, {
-  //   path: '/',
-  //   secure: true,
-  //   sameSite: CookieSameSite.STRICT,
-  //   expires: new Date(Date.now() + timestampDays(14)),
-  // })
+  const session = response?.headers.get(CC_SESSION_HEADER_NAME)
+
+  if (!session) return
+
+  setCookie(CC_SESSION_COOKIE_NAME, session, {
+    path: '/',
+    secure: true,
+    sameSite: CookieSameSite.STRICT,
+    expires: new Date(Date.now() + timestampDays(14)),
+  })
 }
 
 export function postErrorResponse (

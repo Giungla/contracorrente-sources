@@ -17,7 +17,10 @@
   "scripts": {
     "tsup-pix-page": "tsup src/pix-process.ts --format iife --minify terser --treeshake --out-dir dev",
     "tsup-pix-page-prod": "node build-commands/build-for-production.js --name=pix-process",
-    "tsup-pix-page-both": "yarn tsup-pix-page && yarn tsup-pix-page-prod"
+    "tsup-pix-page-both": "yarn tsup-pix-page && yarn tsup-pix-page-prod",
+    "tsup-single-product-page": "tsup src/single-product-page.ts --format iife --minify terser --treeshake --out-dir dev",
+    "tsup-single-product-page-prod": "node build-commands/build-for-production.js --name=single-product-page",
+    "tsup-single-product-page-both": "yarn tsup-single-product-page && yarn tsup-single-product-page-prod"
   },
   "repository": {
     "type": "git",

@@ -1,17 +1,20 @@
-
-import type {
-  IScrollIntoViewArgs,
-} from '../global'
+import {
+  type Nullable,
+} from '../types/global'
 
 import {
   getCookie,
 } from './cookie'
 
 import {
-  AUTH_COOKIE_NAME
+  EMPTY_STRING,
+} from './consts'
+
+import {
+  AUTH_COOKIE_NAME,
 } from './requestResponse'
 
-export const NULL_VALUE = null
+export const NULL_VALUE: null = null
 export const GENERAL_HIDDEN_CLASS = 'oculto'
 
 export const SCROLL_INTO_VIEW_DEFAULT_ARGS: ScrollIntoViewOptions = {
@@ -135,7 +138,7 @@ export function stringify <T extends object> (value: T): string {
 }
 
 export function safeParseJson <T = unknown> (value: string | null | undefined): T | null {
-  if (typeof value !== 'string') return null
+  if (typeof value !== 'string') return NULL_VALUE
 
   try {
     return JSON.parse(value) as T
@@ -145,7 +148,7 @@ export function safeParseJson <T = unknown> (value: string | null | undefined): 
 }
 
 export function numberOnly (value: string): string {
-  return value.replace(/\D+/g, '')
+  return value.replace(/\D+/g, EMPTY_STRING)
 }
 
 export function objectSize <T extends string | any[]> (value: T): number {
@@ -156,10 +159,24 @@ export function EMAIL_REGEX_VALIDATION (): RegExp {
   return /^(([\p{L}\p{N}!#$%&'*+\/=?^_`{|}~-]+(\.[\p{L}\p{N}!#$%&'*+\/=?^_`{|}~-]+)*)|("[\p{L}\p{N}\s!#$%&'*+\/=?^_`{|}~.-]+"))@(([a-zA-Z0-9]+(-[a-zA-Z0-9]+)*\.)+[a-zA-Z]{2,63}|(\[(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\]))$/u
 }
 
+export function PHONE_REGEX_VALIDATION (): RegExp {
+  return /^\(\d{2}\)\s\d{4,5}-\d{4}$/
+}
+
+export function CEP_REGEX_VALIDATION (): RegExp {
+  return /^\d{5}-\d{3}$/
+}
+
+export function isInputInstance (value: any): value is HTMLInputElement {
+  return value instanceof HTMLInputElement
+}
+
 export function normalizeText (text: string): string {
   return text
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, EMPTY_STRING)
+    .replace(/[\u200B-\u200D\uFEFF]/g, EMPTY_STRING)
+    .replace(/[\u2060\u034F]/g, EMPTY_STRING)
 }
 
 export function focusInput (input: ReturnType<typeof querySelector<'input'>>, options?: FocusOptions) {
@@ -168,7 +185,7 @@ export function focusInput (input: ReturnType<typeof querySelector<'input'>>, op
   input.focus(options)
 }
 
-export function scrollIntoView (element: ReturnType<typeof querySelector>, args: IScrollIntoViewArgs) {
+export function scrollIntoView (element: ReturnType<typeof querySelector>, args: ScrollIntoViewOptions) {
   if (!element) return
 
   element.scrollIntoView(args)
@@ -180,4 +197,12 @@ export function splitText (value: string, separator: string | RegExp, limit?: nu
 
 export function isNull (v: any): v is null {
   return v === NULL_VALUE
+}
+
+export function regexTest (regex: RegExp | (() => RegExp), value: string): boolean {
+  const rule = typeof regex === 'function'
+    ? regex()
+    : regex
+
+  return rule.test(value)
 }

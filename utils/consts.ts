@@ -1,9 +1,5 @@
 
-import type {
-  IStateAcronym
-} from '../global'
-
-export const statesMap = {
+export const statesMap = ({
   'AC': 'Acre',
   'AL': 'Alagoas',
   'AP': 'Amapá',
@@ -31,8 +27,16 @@ export const statesMap = {
   'SP': 'São Paulo',
   'SE': 'Sergipe',
   'TO': 'Tocantins'
-}
+}) as const
 
-export const statesAcronym = Object.keys(statesMap) as IStateAcronym[]
+export const XANO_BASE_URL = 'https://xef5-44zo-gegm.b2.xano.io'
+
+export type IStatesMap      = typeof statesMap
+export type IStatesAcronyms = keyof IStatesMap
+
+export const statesAcronym = Object.keys(statesMap) as IStatesAcronyms[]
 
 export const statesValues = Object.values(statesMap)
+
+export const EMPTY_STRING = '' as const
+export const SLASH_STRING = '/' as const

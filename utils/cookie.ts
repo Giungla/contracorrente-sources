@@ -1,23 +1,22 @@
 
-import type {
-  ICookieOptions,
-  ISplitCookieObject
-} from '../global'
+import {
+  type ICookieOptions,
+  type ISplitCookieObject,
+} from '../types/cookie'
 
 import {
-  objectSize
+  splitText,
+  objectSize,
 } from './dom'
 
 export const COOKIE_SEPARATOR = '; '
 
 export function getCookie (name: string): string | false {
-  const selectedCookie = document.cookie
-    .split(COOKIE_SEPARATOR)
-    .find(cookie => {
-      const { name: cookieName } = splitCookie(cookie)
+  const selectedCookie = splitText(document.cookie, COOKIE_SEPARATOR).find(cookie => {
+    const { name: cookieName } = splitCookie(cookie)
 
-      return cookieName === name
-    })
+    return cookieName === name
+  })
 
   return selectedCookie
     ? splitCookie(selectedCookie).value
@@ -25,11 +24,13 @@ export function getCookie (name: string): string | false {
 }
 
 export function splitCookie (cookie: string): ISplitCookieObject {
-  const [name, value] = cookie.split('=')
+  const [name, ...value] = splitText(cookie, '=')
 
   return {
     name,
-    value
+    value: objectSize(value) > 0
+      ? decodeURIComponent(value.join('='))
+      : false,
   }
 }
 
@@ -42,7 +43,7 @@ export function setCookie (name: string, value: string | number | boolean, optio
     throw new Error("'setCookie' should receive a valid cookie value")
   }
 
-  const cookieOptions: string[] = [`${name}=${value}`]
+  const cookieOptions: string[] = [`${name}=${encodeURIComponent(value)}`]
 
   if (options?.expires && options?.expires instanceof Date) {
     cookieOptions.push(`expires=` + options.expires.toUTCString())
@@ -61,7 +62,7 @@ export function setCookie (name: string, value: string | number | boolean, optio
   }
 
   if (options?.domain) {
-    cookieOptions.push(`domain=${options?.path}`)
+    cookieOptions.push(`domain=${options?.domain}`)
   }
 
   if (options?.httpOnly) {
