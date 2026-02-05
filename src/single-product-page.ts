@@ -365,10 +365,7 @@ function fullPriceIsOverPrice (fullPrice: number, price: number): boolean {
 }
 
 function changeQuantity (value: 1 | -1) {
-  navigator.vibrate?.([200, 80, 200, 80, 300])
   if (state.isDeliveryLoading) {
-    navigator.vibrate?.([200, 80, 200, 80, 300])
-
     return
   }
 
@@ -554,6 +551,8 @@ async function handleDeliveryInfo () {
   addClass(calcShippingContainer, GENERAL_HIDDEN_CLASS)
 
   if (!deliveryInfo.succeeded) {
+    navigator.vibrate?.([50, 20, 50])
+
     changeTextContent(
       errorMessageCEP,
       deliveryInfo.message,
@@ -561,7 +560,7 @@ async function handleDeliveryInfo () {
 
     removeClass(errorMessageCEP, GENERAL_HIDDEN_CLASS)
 
-    return
+    return setTimeout(renderFieldCEP, 4000)
   }
 
   state.deliveryPrice = deliveryInfo.data.pcFinal
