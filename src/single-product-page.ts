@@ -73,6 +73,12 @@ import {
   SUBSCRIPTION_DISCOUNT,
 } from '../types/subscription'
 
+import {
+  cartOperations,
+  type CartHandleParams,
+  type CartHandleResponse,
+} from '../types/cart'
+
 const productSlug = location.pathname.split(SLASH_STRING).at(-1)
 
 if (!productSlug) {
@@ -150,6 +156,18 @@ attachEvent(cepField, 'input', async e => {
     : NULL_VALUE
 })
 
+attachEvent(querySelector<'a'>('[data-wtf-buy-now]'), 'click', async e => {
+  if (!e.isTrusted) return
+
+  await acquireItem(true)
+})
+
+attachEvent(querySelector('[data-wtf-add-to-cart]'), 'click', async e => {
+  if (!e.isTrusted) return
+
+  await acquireItem()
+})
+
 const state = new Proxy<ProductState>({
   selectedSku: NULL_VALUE,
   shippingCEP: NULL_VALUE,
@@ -158,6 +176,7 @@ const state = new Proxy<ProductState>({
   skus: [],
   isDeliveryLoading: false,
   deliveryPrice: NULL_VALUE,
+  isManipulatingCart: false,
 }, {
   get (target: ProductState, key: keyof (ProductState & ProductStateDynamic)) {
     switch (key) {
@@ -271,6 +290,41 @@ const state = new Proxy<ProductState>({
   },
 }) as ProductState & ProductStateDynamic
 
+async function acquireItem (immediate?: boolean): Promise<void> {
+  if (state.isManipulatingCart) return
+
+  state.isManipulatingCart = true
+
+  const {
+    quantity,
+    selectedSku,
+  } = state
+
+  if (!selectedSku) {
+    throw new Error('Nenhum SKU foi selecionado')
+  }
+
+  const response = await addProductToCart({
+    item: {
+      quantity,
+      sku_id: selectedSku,
+      reference_id: productSlug as string,
+    },
+    operation: cartOperations.ADD,
+    ...(immediate && {
+      immediate,
+    }),
+  })
+
+  state.isManipulatingCart = false
+
+  if (!response.succeeded) {
+    return alert(response.message ?? 'Não foi possível adicionar o produto no seu carrinho')
+  }
+
+  state.quantity = 1
+}
+
 async function getUser <T extends User> (): Promise<ResponsePattern<T>> {
   const defaultErrorMessage = 'Houve uma falha ao buscar os dados do usuário'
 
@@ -351,6 +405,33 @@ async function getDeliveryInfo <T extends DeliveryOption> (payload: DeliveryInfo
     return postErrorResponse(defaultErrorMessage)
   } finally {
     state.isDeliveryLoading = false
+  }
+}
+
+async function addProductToCart <T extends CartHandleResponse> (payload: CartHandleParams): Promise<ResponsePattern<T>> {
+  const defaultErrorMessage = 'Houve uma falha na adição do produto'
+
+  try {
+    const response = await fetch(`${XANO_BASE_URL}/api:b9-USIEf/cart/handle`, {
+      ...buildRequestOptions([], HttpMethod.POST),
+      body: stringify<CartHandleParams>(payload),
+      priority: 'high',
+      keepalive: true,
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+
+      return postErrorResponse.call(response, error?.message ?? defaultErrorMessage)
+    }
+
+    const data: T = await response.json()
+
+    return postSuccessResponse.call<
+      Response, [T, ResponsePatternCallback?], FunctionSucceededPattern<T>
+    >(response, data)
+  } catch (e) {
+    return postErrorResponse(defaultErrorMessage)
   }
 }
 

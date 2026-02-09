@@ -110,9 +110,9 @@ export interface ProductState {
    */
   deliveryPrice: Nullable<number>;
   /**
-   * Retorna o tipo de preço que será usado
+   * Indica se existe uma operação de manipulação de carrinho em andamento
    */
-  // selectedPriceKey: PriceTypes;
+  isManipulatingCart: boolean;
 }
 
 export interface ProductStateDynamic {
