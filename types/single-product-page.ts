@@ -13,13 +13,6 @@ import {PriceTypes} from "./price";
  */
 type ProductType = 'phisical' | 'ondemand' | 'amazonproduct' | 'subscription'
 
-export interface User {
-  /**
-   * Indica se o usuário ou não assinante da editora
-   */
-  subscriber: boolean;
-}
-
 export interface Product {
   /**
    * Slug do produto
@@ -63,6 +56,10 @@ export interface SingleProductResponse {
    * Lista dos SKU
    */
   skus: SKU[];
+  /**
+   * Indica se o usuário ou não assinante da editora
+   */
+  is_subscriber?: boolean;
 }
 
 export interface DeliveryOption {

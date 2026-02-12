@@ -7,7 +7,6 @@ import {
 } from '../types/global'
 
 import {
-  type User,
   type ProductState,
   type DeliveryOption,
   type DeliveryInfoParams,
@@ -24,11 +23,9 @@ import {
   EMPTY_STRING,
   SLASH_STRING,
   XANO_BASE_URL,
+  STORAGE_KEY_NAME,
+  CART_SWITCH_CLASS,
 } from '../utils/consts'
-
-import {
-  getCookie,
-} from '../utils/cookie'
 
 import {
   BRLFormatter,
@@ -55,7 +52,6 @@ import {
 } from '../utils/dom'
 
 import {
-  AUTH_COOKIE_NAME,
   postErrorResponse,
   postSuccessResponse,
   buildRequestOptions,
@@ -75,6 +71,7 @@ import {
 
 import {
   cartOperations,
+  getCartHandlerPath,
   type CartHandleParams,
   type CartHandleResponse,
 } from '../types/cart'
@@ -90,6 +87,8 @@ const skuSelectorTemplate = querySelector<'a'>('[data-sku-selector]')
 if (!skuSelectorTemplate) {
   throw new Error('Impossível realizar a seleção de SKUs')
 }
+
+const priority: RequestPriority = 'high'
 
 const STRIKETHROUGH_CLASS = 'strikethrough'
 
@@ -323,40 +322,21 @@ async function acquireItem (immediate?: boolean): Promise<void> {
   }
 
   state.quantity = 1
-}
 
-async function getUser <T extends User> (): Promise<ResponsePattern<T>> {
-  const defaultErrorMessage = 'Houve uma falha ao buscar os dados do usuário'
+  addClass(querySelector('#carrinho-flutuante'), CART_SWITCH_CLASS)
 
-  try {
-    const response = await fetch(`${XANO_BASE_URL}/api:_4BO6C7F/user`, {
-      ...buildRequestOptions(),
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-
-      return postErrorResponse.call<
-        Response, [string, boolean?, ResponsePatternCallback?], FunctionErrorPattern
-      >(response, error?.message ?? defaultErrorMessage, true)
-    }
-
-    const data: T = await response.json()
-
-    return postSuccessResponse.call<
-      Response, [T, ResponsePatternCallback?], FunctionSucceededPattern<T>
-    >(response, data)
-  } catch (e) {
-    return postErrorResponse(defaultErrorMessage)
-  }
+  localStorage.setItem(STORAGE_KEY_NAME, stringify<CartHandleResponse>(response.data))
 }
 
 async function getProduct <T extends SingleProductResponse> (slug: string): Promise<ResponsePattern<T>> {
   const defaultErrorMessage = 'Houve uma falha ao buscar os dados do usuário'
 
+  const cartPath = getCartHandlerPath()
+
   try {
-    const response = await fetch(`${XANO_BASE_URL}/api:_4BO6C7F/product/${slug}`, {
+    const response = await fetch(`${XANO_BASE_URL}/api:_4BO6C7F/product/${slug}/${cartPath}`, {
       ...buildRequestOptions(),
+      priority,
     })
 
     if (!response.ok) {
@@ -385,6 +365,7 @@ async function getDeliveryInfo <T extends DeliveryOption> (payload: DeliveryInfo
   try {
     const response = await fetch(`${XANO_BASE_URL}/api:_4BO6C7F/delivery-price`, {
       ...buildRequestOptions([], HttpMethod.POST),
+      priority,
       body: stringify<DeliveryInfoParams>(payload),
     })
 
@@ -411,12 +392,14 @@ async function getDeliveryInfo <T extends DeliveryOption> (payload: DeliveryInfo
 async function addProductToCart <T extends CartHandleResponse> (payload: CartHandleParams): Promise<ResponsePattern<T>> {
   const defaultErrorMessage = 'Houve uma falha na adição do produto'
 
+  const cartPath = getCartHandlerPath()
+
   try {
-    const response = await fetch(`${XANO_BASE_URL}/api:b9-USIEf/cart/handle`, {
+    const response = await fetch(`${XANO_BASE_URL}/api:b9-USIEf/cart/handle/${cartPath}`, {
       ...buildRequestOptions([], HttpMethod.POST),
       body: stringify<CartHandleParams>(payload),
-      priority: 'high',
-      keepalive: true,
+      priority,
+      keepalive: true, // O produto será adicionado ao carrinho mesmo que o usuário realize uma navegação enquanto a requisição ainda está em andamento
     })
 
     if (!response.ok) {
@@ -463,12 +446,6 @@ function changeQuantity (value: 1 | -1) {
   state.quantity = newQuantity
 }
 
-function handleIncomingUser (user: ResponsePattern<User>): void {
-  if (!user.succeeded) return
-
-  state.isSubscriber = user.data.subscriber
-}
-
 function handleIncomingProduct (product: ResponsePattern<SingleProductResponse>): void {
   if (!product.succeeded) {
     location.href = buildURL('/', {
@@ -478,8 +455,9 @@ function handleIncomingProduct (product: ResponsePattern<SingleProductResponse>)
     return
   }
 
-  state.skus        = product.data.skus
-  state.selectedSku = product.data.skus.at(0)?.sku_id ?? NULL_VALUE
+  state.skus         = product.data.skus
+  state.selectedSku  = product.data.skus.at(0)?.sku_id ?? NULL_VALUE
+  state.isSubscriber = product.data.is_subscriber ?? false
 }
 
 function renderSKUItems () {
@@ -648,15 +626,9 @@ async function handleDeliveryInfo () {
   state.deliveryPrice = deliveryInfo.data.pcFinal
 }
 
-const requestList = [
+Promise.allSettled([
   getProduct(productSlug).then(handleIncomingProduct),
-]
-
-if (getCookie(AUTH_COOKIE_NAME)) {
-  requestList.push(getUser().then(handleIncomingUser))
-}
-
-Promise.allSettled(requestList)
+])
 
 window.addEventListener('pageshow', (e: PageTransitionEvent) => {
   if (e.persisted) location.reload()
