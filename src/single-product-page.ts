@@ -455,9 +455,9 @@ function handleIncomingProduct (product: ResponsePattern<SingleProductResponse>)
     return
   }
 
+  state.isSubscriber = product.data.is_subscriber ?? false
   state.skus         = product.data.skus
   state.selectedSku  = product.data.skus.at(0)?.sku_id ?? NULL_VALUE
-  state.isSubscriber = product.data.is_subscriber ?? false
 }
 
 function renderSKUItems () {
