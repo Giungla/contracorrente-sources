@@ -1,4 +1,12 @@
 
+import {
+  AUTH_COOKIE_NAME,
+} from '../utils/requestResponse'
+
+import {
+  getCookie,
+} from '../utils/cookie'
+
 export const cartOperations = ({
   ADD: 'add',
   DELETE: 'delete',
@@ -9,6 +17,21 @@ export const cartOperations = ({
 export type CartOperations = typeof cartOperations
 
 export type CartHandleOperations = CartOperations[keyof CartOperations];
+
+export const handleCartTypes = ({
+  USER: 'user',
+  GUEST: 'guest',
+}) as const
+
+export type HandleCartType = typeof handleCartTypes
+
+export type HandleCartTypes = HandleCartType[keyof HandleCartType]
+
+export function getCartHandlerPath (): HandleCartTypes {
+  return getCookie(AUTH_COOKIE_NAME) !== false
+    ? handleCartTypes.USER
+    : handleCartTypes.GUEST
+}
 
 export interface CartHandleItem {
   /**
@@ -36,7 +59,7 @@ export interface CartHandleParams {
   operation: CartHandleOperations;
 }
 
-interface ResponseItem {
+export interface ResponseItem {
   /**
    * Título do produto
    */
@@ -61,6 +84,10 @@ interface ResponseItem {
    * Preço de capa do produto
    */
   full_price: number;
+  /**
+   * Identificador do SKU
+   */
+  sku_id: string;
 }
 
 export interface CartHandleResponse {
@@ -76,4 +103,21 @@ export interface CartHandleResponse {
    * Preço de capa do pedido
    */
   order_full_price: number;
+  /**
+   * Quantidade de unidades que o cliente possui no carrinho
+   */
+  cart_items: number;
+  /**
+   * Indica se o usuário é um assinante da editora
+   */
+  is_subscriber?: boolean;
 }
+
+export interface HandleCartOperationsPayload extends Pick<ResponseItem, 'quantity' | 'sku_id'> {
+  /**
+   * Referência do produto (slug)
+   */
+  reference_id: string;
+}
+
+export type PriceGroup = Pick<ResponseItem, 'price' | 'full_price'>;

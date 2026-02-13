@@ -20,7 +20,10 @@
     "tsup-pix-page-both": "yarn tsup-pix-page && yarn tsup-pix-page-prod",
     "tsup-single-product-page": "tsup src/single-product-page.ts --format iife --minify terser --treeshake --out-dir dev",
     "tsup-single-product-page-prod": "node build-commands/build-for-production.js --name=single-product-page",
-    "tsup-single-product-page-both": "yarn tsup-single-product-page && yarn tsup-single-product-page-prod"
+    "tsup-single-product-page-both": "yarn tsup-single-product-page && yarn tsup-single-product-page-prod",
+    "tsup-floating-cart": "tsup src/floating-cart.ts --format iife --minify terser --treeshake --out-dir dev",
+    "tsup-floating-cart-prod": "node build-commands/build-for-production.js --name=floating-cart",
+    "tsup-floating-cart-both": "yarn tsup-floating-cart && yarn tsup-floating-cart-prod"
   },
   "repository": {
     "type": "git",
