@@ -23,13 +23,14 @@ import {
   EMPTY_STRING,
   SLASH_STRING,
   XANO_BASE_URL,
+  CEP_STORAGE_KEY,
   STORAGE_KEY_NAME,
   CART_SWITCH_CLASS,
 } from '../utils/consts'
 
 import {
-  BRLFormatter,
   maskCEP,
+  BRLFormatter,
 } from '../utils/mask'
 
 import {
@@ -106,6 +107,9 @@ const calcShippingContainer = querySelector('#spp-calculo-do-cep')
 // Campo responsável pela busca de CEP
 const cepField = querySelector<'input'>('#spp-campo-de-cep')
 
+// Container onde o botão "Adicionar CEP" está incluso
+const triggerCEPContainer = querySelector<'div'>('[data-wtf-trigger-add-cep-container]')
+
 // Elemento responsável pela exibição da mensagem de erro se a consulta de frete falhar
 const errorMessageCEP = querySelector<'div'>('#spp-mensagem-de-erro-campo-de-cep')
 
@@ -130,11 +134,7 @@ attachEvent(querySelector('[data-wtf-quantity-plus]'), 'click', e => {
 })
 
 attachEvent(triggerAddCEP, 'click', e => {
-  toggleClass(
-    querySelector('[data-wtf-trigger-add-cep-container]'),
-    GENERAL_HIDDEN_CLASS,
-    true,
-  )
+  toggleClass(triggerCEPContainer, GENERAL_HIDDEN_CLASS, true)
 
   removeClass(calcShippingContainer, GENERAL_HIDDEN_CLASS)
 })
@@ -146,13 +146,7 @@ attachEvent(cepField, 'input', async e => {
 
   if (!isInputInstance(target)) return
 
-  const maskedValue = maskCEP(numberOnly(target.value))
-
-  target.value = maskedValue
-
-  state.shippingCEP = regexTest(CEP_REGEX_VALIDATION, maskedValue)
-    ? numberOnly(maskedValue)
-    : NULL_VALUE
+  handleDeliveryPrice(target)
 })
 
 attachEvent(querySelector<'a'>('[data-wtf-buy-now]'), 'click', async e => {
@@ -257,7 +251,9 @@ const state = new Proxy<ProductState>({
         }
         break
       case 'shippingCEP':
-        handleDeliveryInfo()
+        handleDeliveryInfo().then(() => {
+          addClass(triggerCEPContainer, GENERAL_HIDDEN_CLASS)
+        })
         break
       case 'isDeliveryLoading':
         // Exibir/ocultar loader do frete
@@ -288,6 +284,16 @@ const state = new Proxy<ProductState>({
     return hasApplied
   },
 }) as ProductState & ProductStateDynamic
+
+async function handleDeliveryPrice (cepField: HTMLInputElement): Promise<void> {
+  const maskedValue = maskCEP(numberOnly(cepField.value))
+
+  cepField.value = maskedValue
+
+  state.shippingCEP = regexTest(CEP_REGEX_VALIDATION, maskedValue)
+    ? numberOnly(maskedValue)
+    : NULL_VALUE
+}
 
 async function acquireItem (immediate?: boolean): Promise<void> {
   if (state.isManipulatingCart) return
@@ -458,6 +464,12 @@ function handleIncomingProduct (product: ResponsePattern<SingleProductResponse>)
   state.isSubscriber = product.data.is_subscriber ?? false
   state.skus         = product.data.skus
   state.selectedSku  = product.data.skus.at(0)?.sku_id ?? NULL_VALUE
+
+  const previousCEPValue = localStorage.getItem(CEP_STORAGE_KEY)
+
+  if (previousCEPValue && isInputInstance(cepField)) {
+    handleDeliveryPrice(cepField)
+  }
 }
 
 function renderSKUItems () {
@@ -620,8 +632,12 @@ async function handleDeliveryInfo () {
 
     removeClass(errorMessageCEP, GENERAL_HIDDEN_CLASS)
 
-    return setTimeout(renderFieldCEP, 4000)
+    setTimeout(renderFieldCEP, 4000)
+
+    return
   }
+
+  localStorage.setItem(CEP_STORAGE_KEY, shippingCEP)
 
   state.deliveryPrice = deliveryInfo.data.pcFinal
 }
