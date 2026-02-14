@@ -240,18 +240,13 @@ const state = new Proxy<ProductState>({
         {
           renderQuantity()
           renderFinalPrice()
-
-          const {
-            shippingCEP,
-          } = target
-
-          if (!isNull(shippingCEP) && objectSize(shippingCEP) === 8) {
-            handleDeliveryInfo()
-          }
+          handleDeliveryInfo()
         }
         break
       case 'shippingCEP':
-        handleDeliveryInfo().then(() => {
+        handleDeliveryInfo().then(response => {
+          if (!response) return
+
           addClass(triggerCEPContainer, GENERAL_HIDDEN_CLASS)
         })
         break
@@ -468,7 +463,7 @@ function handleIncomingProduct (product: ResponsePattern<SingleProductResponse>)
   const previousCEPValue = localStorage.getItem(CEP_STORAGE_KEY)
 
   if (previousCEPValue && isInputInstance(cepField)) {
-    handleDeliveryPrice(cepField)
+    state.shippingCEP = numberOnly(previousCEPValue)
   }
 }
 
@@ -576,7 +571,7 @@ function renderFinalPrice (): void {
 
 function renderFieldCEP () {
   if (cepField) {
-    cepField.value    = EMPTY_STRING
+    cepField.value = EMPTY_STRING
   }
 
   state.shippingCEP = NULL_VALUE
@@ -602,15 +597,18 @@ function getSelectedSKU (): SKU | undefined {
   return skus.find(sku => selectedSku === sku.sku_id)
 }
 
-async function handleDeliveryInfo () {
-  if (state.isDeliveryLoading) return
-
+async function handleDeliveryInfo (): Promise<undefined | boolean> {
   const {
     quantity,
     shippingCEP,
+    isDeliveryLoading,
   } = state
 
-  if (isNull(shippingCEP) || !productSlug) {
+  if (isDeliveryLoading || isNull(shippingCEP) || objectSize(shippingCEP) !== 8) {
+    return false
+  }
+
+  if (!productSlug) {
     throw new Error('Invalid parameters provided to `getDeliveryInfo` function')
   }
 
@@ -634,12 +632,14 @@ async function handleDeliveryInfo () {
 
     setTimeout(renderFieldCEP, 4000)
 
-    return
+    return false
   }
 
   localStorage.setItem(CEP_STORAGE_KEY, shippingCEP)
 
   state.deliveryPrice = deliveryInfo.data.pcFinal
+
+  return true
 }
 
 Promise.allSettled([
