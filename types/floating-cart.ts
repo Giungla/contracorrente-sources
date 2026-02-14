@@ -25,9 +25,9 @@ export interface FloatingCartState {
    */
   cart: Nullable<CartHandleResponse>;
   /**
-   * Indica se o usuário é um assinante da editora
+   * Valor do frete para os produtos no carrinho
    */
-  isSubscriber: boolean;
+  shippingPrice: Nullable<number>;
 }
 
 export interface FloatingCartStateHandler {

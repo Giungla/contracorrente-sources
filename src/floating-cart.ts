@@ -2,17 +2,15 @@
 import {
   NULL_VALUE,
   GENERAL_HIDDEN_CLASS,
-  hasOwn,
   isArray,
   stringify,
-  objectSize,
   querySelector,
-  // safeParseJson,
   changeTextContent,
   addClass,
   toggleClass,
   attachEvent,
   hasClass,
+  removeClass,
 } from '../utils/dom'
 
 import {
@@ -21,8 +19,8 @@ import {
 
 import {
   XANO_BASE_URL,
-  // STORAGE_KEY_NAME,
   CART_SWITCH_CLASS,
+  CEP_STORAGE_KEY,
 } from '../utils/consts'
 
 import {
@@ -71,6 +69,10 @@ import {
   PriceTypes,
 } from '../types/price'
 
+import {
+  type DeliveryOption,
+} from '../types/single-product-page'
+
 const cart = querySelector<'div'>('#carrinho-flutuante')
 
 if (!cart) {
@@ -87,7 +89,7 @@ const _state: FloatingCartState = {
   fetched: NULL_VALUE,
   isPending: false,
   isCartOpened: true,
-  isSubscriber: false,
+  shippingPrice: NULL_VALUE,
 }
 
 const cartItemTemplate = querySelector('[data-wtf-floating-cart-item]')
@@ -129,55 +131,61 @@ const state = new Proxy(_state, {
       case 'cart':
         renderCart()
 
+        handleShippingPrice()
+
+        renderFinalPrices(target.cart as CartHandleResponse, target.cart?.is_subscriber ?? false)
+
         // handlePromoMessages()
         // localStorage.setItem(STORAGE_KEY_NAME, stringify(value as CartHandleResponse))
 
         break
+      case 'shippingPrice':
+        renderFinalPrices(target.cart as CartHandleResponse, target.cart?.is_subscriber ?? false)
     }
 
     return isApplied
   }
 }) as GroupFloatingCartState
 
-function hasRootKeys (cart: object): cart is CartHandleResponse {
-  const rootKeys: (keyof CartHandleResponse)[] = [
-    'items',
-    'cart_items',
-    'order_price',
-    'order_full_price',
-  ]
+// function hasRootKeys (cart: object): cart is CartHandleResponse {
+//   const rootKeys: (keyof CartHandleResponse)[] = [
+//     'items',
+//     'cart_items',
+//     'order_price',
+//     'order_full_price',
+//   ]
+//
+//   return rootKeys.some(key => !hasOwn(cart, key))
+// }
 
-  return rootKeys.some(key => !hasOwn(cart, key))
-}
-
-function hasValidCart (cart: object): cart is CartHandleResponse {
-  if (!hasRootKeys(cart)) return false
-
-  const {
-    items,
-  } = cart
-
-  if (!isArray(items)) return false
-
-  if (objectSize(items) === 0) return true
-
-  const itemKeys: (keyof ResponseItem)[] = [
-    'name',
-    'slug',
-    'sku_id',
-    'quantity',
-    'price',
-    'full_price',
-    'image_url',
-  ]
-
-  return items.every(cartItem => {
-    return itemKeys.every(key => hasOwn(cartItem, key))
-  })
-}
+// function hasValidCart (cart: object): cart is CartHandleResponse {
+//   if (!hasRootKeys(cart)) return false
+//
+//   const {
+//     items,
+//   } = cart
+//
+//   if (!isArray(items)) return false
+//
+//   if (objectSize(items) === 0) return true
+//
+//   const itemKeys: (keyof ResponseItem)[] = [
+//     'name',
+//     'slug',
+//     'sku_id',
+//     'quantity',
+//     'price',
+//     'full_price',
+//     'image_url',
+//   ]
+//
+//   return items.every(cartItem => {
+//     return itemKeys.every(key => hasOwn(cartItem, key))
+//   })
+// }
 
 async function refreshCartItems (): Promise<void> {
-  if (!state.isCartOpened) return
+  if (!state.isCartOpened || state.isPending) return
 
   // const parsedCart = safeParseJson(localStorage.getItem(STORAGE_KEY_NAME))
   //
@@ -286,6 +294,71 @@ async function handleProductChangeQuantity (
   state.cart = response.data
 }
 
+async function getCartShippingPrice <T extends DeliveryOption> (cep: string): Promise<ResponsePattern<T>> {
+  const defaultErrorMessage = 'Houve uma falha durante a captura do preço de entrega'
+
+  try {
+    const response = await fetch(`${CART_BASE_URL}/cart/delivery-price?cep=${cep}`, {
+      ...buildRequestOptions(),
+      priority: 'high',
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+
+      return postErrorResponse.call<
+        Response, [string], FunctionErrorPattern
+      >(response, error?.message ?? defaultErrorMessage)
+    }
+
+    const data: T = await response.json()
+
+    return postSuccessResponse.call<
+      Response, [T, ResponsePatternCallback?], FunctionSucceededPattern<T>
+    >(response, data)
+  } catch (e) {
+    return postErrorResponse(defaultErrorMessage)
+  }
+}
+
+async function handleShippingPrice (): Promise<void> {
+  const shippingCEP = localStorage.getItem(CEP_STORAGE_KEY)
+
+  const cepWrapper = querySelector<'div'>('[data-wtf-floating-cart-shipping-wrapper]')
+
+  if (!shippingCEP) {
+    addClass(
+      cepWrapper,
+      GENERAL_HIDDEN_CLASS,
+    )
+
+    return
+  }
+
+  const response = await getCartShippingPrice(shippingCEP)
+
+  if (!response.succeeded) {
+    addClass(
+      cepWrapper,
+      GENERAL_HIDDEN_CLASS,
+    )
+
+    return
+  }
+
+  state.shippingPrice = response.data.pcFinal
+
+  removeClass(
+    cepWrapper,
+    GENERAL_HIDDEN_CLASS,
+  )
+
+  changeTextContent(
+    querySelector('[data-wtf-floating-cart-shipping-price]'),
+    BRLFormatter.format(decimalRound(state.shippingPrice / 100, 2)),
+  )
+}
+
 function getLowerPriceTypeWhenHasActiveSubscription (items: Pick<ResponseItem, 'price' | 'full_price'>[]): PriceTypes {
   const finalPrices = items.reduce<PriceGroup>((acc, item) => {
     acc[priceType.PRICE]      += item[priceType.PRICE]
@@ -309,29 +382,8 @@ function getLowerPriceTypeWhenHasActiveSubscription (items: Pick<ResponseItem, '
 }
 
 function renderProductPrices (prices: PriceGroup, template: HTMLElement, priceMechanism: false | PriceTypes = false): void {
-  // Realiza o tratamento do preço de venda que será aplicado (esse é o valor que será pago)
-  // const parsedPrice = priceMechanism
-  //   ? Math.min(Math.round(params.full_price * (1 - SUBSCRIPTION_DISCOUNT)), params.price)
-  //   : params.price
-  //
-  // const hasOldPrice = params.full_price !== parsedPrice
-  //
-  // if (hasOldPrice) {
-  //   changeTextContent(
-  //     querySelector('[data-wtf-floating-cart-item-product-price-original]', template),
-  //     BRLFormatter.format(decimalRound(full_price / 100, 2)),
-  //   )
-  // } else {
-  //   // remove o old price da arvore de elementos
-  //   addClass(
-  //     querySelector('[data-wtf-floating-cart-item-product-price-original]', template),
-  //     GENERAL_HIDDEN_CLASS,
-  //   )
-  // }
   const originalPriceElement = querySelector<'div'>('[data-wtf-floating-cart-item-product-price-original]', template)
   const finalPriceElement = querySelector<'div'>('[data-wtf-floating-cart-item-product-price]', template)
-
-  // changeTextContent(finalPriceElement, BRLFormatter.format(decimalRound(parsedPrice / 100)))
 
   let price = 0
   let full_price = 0
@@ -373,6 +425,32 @@ function renderProductPrices (prices: PriceGroup, template: HTMLElement, priceMe
   )
 }
 
+function renderFinalPrices (cart: CartHandleResponse, is_subscriber: boolean): false | PriceTypes {
+  const _priceType = is_subscriber && getLowerPriceTypeWhenHasActiveSubscription(
+    cart.items.map(({ price, full_price }) => ({
+      price,
+      full_price,
+    }))
+  )
+
+  let orderPrice = 0
+
+  switch (_priceType) {
+    case false: // Usuário não é assinante
+    case priceType.PRICE: // Usuário é assinante, preços de venda somados são a melhor oferta
+      orderPrice = cart.order_price
+      break
+    case priceType.FULL_PRICE: // Usuário é assinante, preços de capa com aplicação de desconto são a melhor oferta
+      orderPrice = Math.round(cart.order_full_price * (1 - SUBSCRIPTION_DISCOUNT))
+  }
+
+  orderPrice += state.shippingPrice ?? 0
+
+  changeTextContent(cartTotalElement, BRLFormatter.format(decimalRound(orderPrice / 100, 2)))
+
+  return _priceType
+}
+
 function renderCart (): void {
   const {
     cart: userCart,
@@ -392,6 +470,7 @@ function renderCart (): void {
 
   toggleClass(cartTotalElement, GENERAL_HIDDEN_CLASS, hasNoItems)
   toggleClass(querySelector('[data-wtf-floating-cart-checkout-button]', cart), GENERAL_HIDDEN_CLASS, hasNoItems)
+  toggleClass(querySelector('[data-wtf-floating-cart-total-block]'), GENERAL_HIDDEN_CLASS, hasNoItems)
 
   if (!toggleClass(cartEmpty, GENERAL_HIDDEN_CLASS, !hasNoItems)) {
     changeTextContent(querySelector('[data-wtf-floating-cart-items-indicator]'), cart_items)
@@ -401,25 +480,7 @@ function renderCart (): void {
 
   const cartFragment = document.createDocumentFragment()
 
-  const _priceType = is_subscriber && getLowerPriceTypeWhenHasActiveSubscription(
-    items.map(({ price, full_price }) => ({
-      price,
-      full_price,
-    }))
-  )
-
-  let orderPrice = 0
-
-  switch (_priceType) {
-    case false: // Usuário não é assinante
-    case priceType.PRICE: // Usuário é assinante, preços de venda somados são a melhor oferta
-      orderPrice = userCart.order_price
-      break
-    case priceType.FULL_PRICE: // Usuário é assinante, preços de capa com aplicação de desconto são a melhor oferta
-      orderPrice = Math.round(userCart.order_full_price * (1 - SUBSCRIPTION_DISCOUNT))
-  }
-
-  changeTextContent(cartTotalElement, BRLFormatter.format(decimalRound(orderPrice / 100, 2)))
+  const _priceType = renderFinalPrices(userCart, is_subscriber)
 
   for (const { slug, image_url, quantity, price, full_price, name, sku_id } of items) {
     const template = cartItemTemplate.cloneNode(true) as HTMLElement
@@ -504,6 +565,8 @@ const cartObserver = new MutationObserver(mutations => {
 
   const hasClassInCart = hasClass(_cart, CART_SWITCH_CLASS)
 
+  if (state.isCartOpened === hasClassInCart) return
+
   state.isCartOpened = hasClassInCart
 
   window.scrollTo({
@@ -548,4 +611,8 @@ document.querySelectorAll<HTMLElement>('[data-wtf-botao-carrinho-flutuante]').fo
 //   state.cart = parsedCart
 // })
 
-refreshCartItems().then(() => state.isCartOpened = false)
+refreshCartItems().then(() => {
+  state.isCartOpened = false
+
+  removeClass(cart, GENERAL_HIDDEN_CLASS)
+})
