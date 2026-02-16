@@ -49,7 +49,7 @@ import {
   isInputInstance,
   isNull,
   addClass,
-  objectSize,
+  objectSize, getAttribute,
 } from '../utils/dom'
 
 import {
@@ -125,6 +125,9 @@ const subscriberViewPrice = querySelector<'div'>('[data-wtf-subscriber-view-pric
 // Elemento usado para resetar o CEP usado na simulação de frete
 const changeDeliveryCEP = querySelector<'div'>('#spp-custo-do-frete-mudar-cep')
 
+// Botão "Comprar agora"
+const buyNowCTA = querySelector<'a'>('[data-wtf-buy-now]')
+
 attachEvent(querySelector('[data-wtf-quantity-minus]'), 'click', e => {
   changeQuantity(-1)
 })
@@ -149,7 +152,7 @@ attachEvent(cepField, 'input', async e => {
   handleDeliveryPrice(target)
 })
 
-attachEvent(querySelector<'a'>('[data-wtf-buy-now]'), 'click', async e => {
+attachEvent(buyNowCTA, 'click', async e => {
   if (!e.isTrusted) return
 
   await acquireItem(true)
@@ -323,6 +326,12 @@ async function acquireItem (immediate?: boolean): Promise<void> {
   }
 
   state.quantity = 1
+
+  if (immediate) {
+    location.href = getAttribute(buyNowCTA, 'href') ?? SLASH_STRING
+
+    return
+  }
 
   addClass(querySelector('#carrinho-flutuante'), CART_SWITCH_CLASS)
 
