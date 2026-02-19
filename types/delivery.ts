@@ -39,6 +39,17 @@ export type DeliveryCode = typeof deliveryCodes
 
 export type DeliveryCodes = DeliveryCode[keyof DeliveryCode]
 
+export interface DeliveryPlace {
+  /**
+   * Identificador do tipo do endereço de entrega
+   */
+  token: DeliveryTypes;
+  /**
+   * Label que será exibido ao usuário
+   */
+  label: string;
+}
+
 export function getDeliveryCodeName (deliveryCode: DeliveryCodes): string {
   switch (deliveryCode) {
     case deliveryCodes.PAC:

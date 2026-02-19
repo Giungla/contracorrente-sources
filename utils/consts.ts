@@ -26,13 +26,19 @@ export const statesMap = ({
   'SC': 'Santa Catarina',
   'SP': 'São Paulo',
   'SE': 'Sergipe',
-  'TO': 'Tocantins'
+  'TO': 'Tocantins',
 }) as const
 
 export const XANO_BASE_URL = 'https://xef5-44zo-gegm.b2.xano.io'
 
+export const STORAGE_KEY_NAME = 'editora_contracorrente_cart_items'
+
+export const CEP_STORAGE_KEY = 'contra_corrente_cep'
+
 export type IStatesMap      = typeof statesMap
 export type IStatesAcronyms = keyof IStatesMap
+
+export const CART_SWITCH_CLASS = 'carrinhoflutuante--visible'
 
 export const statesAcronym = Object.keys(statesMap) as IStatesAcronyms[]
 

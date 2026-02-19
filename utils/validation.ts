@@ -15,7 +15,9 @@ export const CPF_VERIFIERS_INDEXES = [10, 11]
 export function isCPFValid (cpf: string): boolean {
   cpf = numberOnly(cpf)
 
-  if (objectSize(cpf) !== 11 || regexTest(/^(\d)\1{10}$/, cpf)) return false
+  const DIGITS_COUNT_IN_CPF = 11
+
+  if (objectSize(cpf) !== DIGITS_COUNT_IN_CPF || regexTest(/^(\d)\1{10}$/, cpf)) return false
 
   const verifiers = CPF_VERIFIERS_INDEXES.map((verifierDigit, verifierIndex) => {
     const lastIndex = verifierIndex ? 10 : 9;
@@ -24,7 +26,7 @@ export function isCPFValid (cpf: string): boolean {
       .map(Number)
       .reduce((acc, cur, index) => acc + cur * (verifierDigit - index), 0)
 
-    const result = 11 - (sum % 11)
+    const result = DIGITS_COUNT_IN_CPF - (sum % DIGITS_COUNT_IN_CPF)
 
     return result > 9
       ? 0
@@ -50,4 +52,24 @@ export function isDateValid (date: string): boolean {
   const isSameYear  = parsedDate.getUTCFullYear()  === Number(fullYear)
 
   return isSameDay && isSameMonth && isSameYear
+}
+
+export function isCreditCardExpireDateValid (expireDate: string): boolean {
+  const tokens = splitText(expireDate, SLASH_STRING)
+
+  if (objectSize(tokens) !== 2) return false
+
+  const [monthStr, yearStr] = tokens
+
+  const month = parseInt(monthStr, 10)
+  const shortYear = parseInt(yearStr, 10)
+
+  if (isNaN(month) || isNaN(shortYear) || month < 1 || month > 12) return false
+
+  const currentDate = new Date()
+  const fullYear = 2000 + (shortYear < 100 ? shortYear : 0)
+
+  const expireDateTime = new Date(fullYear, month, 0, 23, 59, 59)
+
+  return expireDateTime > currentDate
 }

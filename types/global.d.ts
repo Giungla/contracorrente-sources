@@ -1,13 +1,7 @@
 
-type Vue = typeof import('vue')
-
-declare global {
-  interface Window {
-    Vue: Vue,
-  }
-}
-
 export type Nullable <T> = null | T;
+
+export type BRLString = `R$ ${string}`;
 
 export interface FunctionSucceededPattern <T = null> {
   data: T;

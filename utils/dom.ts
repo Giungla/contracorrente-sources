@@ -137,6 +137,10 @@ export function stringify <T extends object> (value: T): string {
   return JSON.stringify(value)
 }
 
+export function trim (value: string): string {
+  return value.trim()
+}
+
 export function safeParseJson <T = unknown> (value: string | null | undefined): T | null {
   if (typeof value !== 'string') return NULL_VALUE
 
@@ -167,6 +171,18 @@ export function CEP_REGEX_VALIDATION (): RegExp {
   return /^\d{5}-\d{3}$/
 }
 
+export function DATE_REGEX_VALIDATION (): RegExp {
+  return /^\d{2}\/\d{2}\/\d{4}$/
+}
+
+export function CPF_REGEX_VALIDATION (): RegExp {
+  return /^\d{3}\.\d{3}\.\d{3}-\d{2}$/
+}
+
+export function FULLNAME_REGEX_VALIDATION (): RegExp {
+  return /^(\w{2,})(\s+(\w+))+$/
+}
+
 export function isInputInstance (value: any): value is HTMLInputElement {
   return value instanceof HTMLInputElement
 }
@@ -177,6 +193,10 @@ export function normalizeText (text: string): string {
     .replace(/[\u0300-\u036f]/g, EMPTY_STRING)
     .replace(/[\u200B-\u200D\uFEFF]/g, EMPTY_STRING)
     .replace(/[\u2060\u034F]/g, EMPTY_STRING)
+}
+
+export function replaceDuplicatedSpaces (value: string): string {
+  return value.replace(/\s{2,}/g, ' ')
 }
 
 export function focusInput (input: ReturnType<typeof querySelector<'input'>>, options?: FocusOptions) {
@@ -206,3 +226,25 @@ export function regexTest (regex: RegExp | (() => RegExp), value: string): boole
 
   return rule.test(value)
 }
+
+export function hasOwn (object: object, key: PropertyKey): boolean {
+  return Object.hasOwn(object, key)
+}
+
+export function debounce <T extends (...args: any[]) => any> (
+  func: T,
+  delay: number = 500,
+): (...args: Parameters<T>) => void {
+  let timer: ReturnType<typeof setTimeout> | null = NULL_VALUE
+
+  return function (this: any, ...args: Parameters<T>): void {
+    if (timer) {
+      clearTimeout(timer)
+    }
+
+    timer = setTimeout(() => {
+      func.apply(this, args)
+    }, delay)
+  }
+}
+

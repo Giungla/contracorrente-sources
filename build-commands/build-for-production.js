@@ -53,7 +53,9 @@ await build({
   format: ['iife'],
   minify: 'terser',
   outDir: 'dist',
+  platform: 'browser',
   treeshake: true,
+  splitting: false,
   outExtension: () => ({
     js: `.${hash}.js`,
   }),
@@ -61,6 +63,9 @@ await build({
     'console',
     'debugger',
   ],
+  env: {
+    NODE_ENV: 'production',
+  },
   terserOptions: {
     compress: {
       booleans: true,            // true → !0, false → !1
@@ -87,7 +92,26 @@ await build({
       comments: false            // remove comentários
     },
     safari10: true,
-
+  },
+  external: [
+    // 'vue',
+    // /node_modules/,
+  ],
+  noExternal: [],
+  define: {
+    __VUE_OPTIONS_API__: 'true',
+    __VUE_PROD_DEVTOOLS__: 'false',
+    'process.env.NODE_ENV': 'production',
+  },
+  target: 'es2020',
+  sourcemap: false,
+  esbuildOptions(options) {
+    options.bundle = true
+    options.packages = 'external'
+    options.alias = {
+      vue: 'Vue',
+      // vue: 'vue/dist/vue.global.prod.js',
+    }
   },
 });
 

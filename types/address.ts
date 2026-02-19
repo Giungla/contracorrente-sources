@@ -67,3 +67,26 @@ export interface UserAddress {
    */
   neighborhood: string;
 }
+
+export interface BaseAddress {
+  /**
+   * CEP do endereço (somente números)
+   */
+  cep: string;
+  /**
+   * Nome do bairro do endereço
+   */
+  bairro: string;
+  /**
+   * Nome da rua do endereço
+   */
+  logradouro: string;
+  /**
+   * Cidade do endereço
+   */
+  localidade: string;
+  /**
+   * Sigla do estado do endereço
+   */
+  uf: IStatesAcronyms;
+}

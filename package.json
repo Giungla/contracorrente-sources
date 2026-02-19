@@ -7,7 +7,7 @@
     "terser": "^5.43.1",
     "tsup": "^8.0.0",
     "typescript": "^5.7.3",
-    "vue": "^3.5.14"
+    "vue": "^3.5.22"
   },
   "engines": {
     "node": "22.17.0",
@@ -23,7 +23,10 @@
     "tsup-single-product-page-both": "yarn tsup-single-product-page && yarn tsup-single-product-page-prod",
     "tsup-floating-cart": "tsup src/floating-cart.ts --format iife --minify terser --treeshake --out-dir dev",
     "tsup-floating-cart-prod": "node build-commands/build-for-production.js --name=floating-cart",
-    "tsup-floating-cart-both": "yarn tsup-floating-cart && yarn tsup-floating-cart-prod"
+    "tsup-floating-cart-both": "yarn tsup-floating-cart && yarn tsup-floating-cart-prod",
+    "tsup-checkout": "tsup src/checkout.ts --format iife --minify terser --treeshake --out-dir dev --env.NODE_ENV production",
+    "tsup-checkout-prod": "node build-commands/build-for-production.js --name=checkout",
+    "tsup-checkout-both": "yarn tsup-checkout && yarn tsup-checkout-prod"
   },
   "repository": {
     "type": "git",
