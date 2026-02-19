@@ -304,6 +304,11 @@ export interface CheckoutAppSetup {
   shippingMethodMessageRef: Ref<Nullable<HTMLDivElement>>;
 
   /**
+   * Referência ao elemento que exibe a mensagem de erro global após uma tentativa de pagamento
+   */
+  generalErrorMessageRef: Ref<Nullable<HTMLDivElement>>;
+
+  /**
    * Mensagem de erro customizada para o endereço de cobrança
    */
   deliveryBillingAddressErrorMessage: Ref<Nullable<string>>;
@@ -317,6 +322,11 @@ export interface CheckoutAppSetup {
    * Opções de parcelamento disponíveis para cartão de crédito
    */
   installment: ShallowRef<Nullable<InstallmentItem[]>>;
+
+  /**
+   * Mensagem de erro captura após uma tentativa de pagamento
+   */
+  errorMessage: Ref<Nullable<string>>;
 
   /**
    * Lista os métodos de pagamento disponíveis
@@ -579,7 +589,7 @@ export interface IParsedAddress {
   /**
    * Complemento do endereço
    */
-  complement: string;
+  complement?: string;
   /**
    * Nome do bairro
    */

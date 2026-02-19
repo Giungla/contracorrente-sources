@@ -287,11 +287,15 @@ const CheckoutComponent = defineComponent({
 
       shippingMethodMessageRef: ref<Nullable<HTMLDivElement>>(NULL_VALUE),
 
+      generalErrorMessageRef: ref<Nullable<HTMLDivElement>>(NULL_VALUE),
+
       deliveryBillingAddressErrorMessage: ref<Nullable<string>>(NULL_VALUE),
 
       deliveryPlaceAddressErrorMessage: ref<Nullable<string>>(NULL_VALUE),
 
       installment: shallowRef<Nullable<InstallmentItem[]>>(NULL_VALUE),
+
+      errorMessage: ref<Nullable<string>>(NULL_VALUE),
 
       paymentMethods: shallowRef([
         paymentMethodObject(paymentType.CREDITCARD, 'Cartão de crédito'),
@@ -592,7 +596,9 @@ const CheckoutComponent = defineComponent({
         scrollIntoView(field, SCROLL_INTO_VIEW_DEFAULT_ARGS)
 
         if (isInputInstance(field)) {
-          setTimeout(() => field.focus({ preventScroll: false }), 500)
+          setTimeout(focusInput, 500, field, {
+            preventScroll: false,
+          } satisfies FocusOptions)
         }
 
         return
@@ -603,11 +609,17 @@ const CheckoutComponent = defineComponent({
       const response = await this.handlePostPayment(selectedPaymentMethod as PaymentTypes)
 
       if (!response.succeeded) {
-        // this.errorMessage = response.message
+        this.errorMessage = response.message
 
         this.hasPendingPayment = !isPageLoading(false)
 
-        return
+        return this.$nextTick(() => {
+          scrollIntoView(this.generalErrorMessageRef, SCROLL_INTO_VIEW_DEFAULT_ARGS)
+
+          setTimeout(() => {
+            this.errorMessage = NULL_VALUE
+          }, 5000)
+        })
       }
 
       // clearTrackingCookies()
@@ -1333,27 +1345,35 @@ const CheckoutComponent = defineComponent({
     getParsedAddresses (): IParsedAddressContent {
       const parseState = (acronym: string) => includes(statesAcronym, acronym) ? acronym : EMPTY_STRING
 
-      const parseComplement = (complement: string) => trim(complement).replace(/-+/g, EMPTY_STRING) || 'N/A'
+      const parseComplement = (complement: string) => trim(complement).replace(/-+/g, EMPTY_STRING)
+
+      const shippingComplement = parseComplement(this.shippingComplement)
 
       const shippingaddress = {
         zipPostalCode: numberOnly(this.shippingCEP),
         street: this.shippingAddress,
         number: this.shippingNumber,
-        complement: parseComplement(this.shippingComplement),
         neighbourhood: this.shippingNeighborhood,
         city: this.shippingCity,
         state: parseState(this.shippingState),
+        ...(shippingComplement) && {
+          complement: shippingComplement,
+        }
       } satisfies IParsedAddress
 
+      const billingComplement = parseComplement(this.billingComplement)
+
       const billingaddress: IParsedAddress = {
-        zipPostalCode: this.billingCEP,
+        zipPostalCode: numberOnly(this.billingCEP),
         street: this.billingAddress,
         number: this.billingNumber,
-        complement: parseComplement(this.billingComplement),
         neighbourhood: this.billingNeighborhood,
         city: this.billingCity,
         state: parseState(this.billingState),
-      }
+        ...(billingComplement && {
+          complement: billingComplement,
+        }),
+      } satisfies IParsedAddress
 
       if (this.isCreditCard) {
         return {
@@ -1584,6 +1604,11 @@ const CheckoutComponent = defineComponent({
         return
       }
     },
+
+    /**
+     * Observa as modificações realizadas no CEP do endereço de entrega
+     */
+    // shippingCEP: Este método foi movido para o hook `created`
 
     /**
      * Observa as modificações realizadas no valor total do pedido
