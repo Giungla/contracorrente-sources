@@ -872,6 +872,13 @@ const CheckoutComponent = defineComponent({
     },
 
     /**
+     * Indica se `deliveryPlace` foi definido pelo usuário
+     */
+    hasSelectedAddress (): boolean {
+      return !isNull(this.deliveryPlace)
+    },
+
+    /**
      * Lista dos produtos contidos no carrinho transformados para exibição no checkout
      */
     renderedProducts (): RenderedProduct[] {
