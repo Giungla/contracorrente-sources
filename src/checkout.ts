@@ -51,7 +51,7 @@ import {
   type IParsedAddressContent,
   type ISingleValidateCheckout,
   type LabeledDeliveryOption,
-  type PagSeguroCardEncrypt,
+  type PagSeguroCardEncrypt, ParsedAddressShipping,
   type PaymentResponseMap,
   type PostOrder,
   type PostOrderCreditCard,
@@ -372,6 +372,12 @@ const CheckoutComponent = defineComponent({
         this.shippingNeighborhood = address.bairro
         this.shippingCity         = address.localidade
         this.shippingState        = address.uf
+
+        this.billingCEP          = maskCEP(address.cep)
+        this.billingAddress      = address.logradouro
+        this.billingNeighborhood = address.bairro
+        this.billingCity         = address.localidade
+        this.billingState        = address.uf
       }
 
       if (detailed_shipping) {
@@ -379,7 +385,8 @@ const CheckoutComponent = defineComponent({
       }
 
       this.cart = cart
-
+    })
+    .finally(() => {
       /**
        * Watcher adicionado após a consulta inicial, de forma a evitar chamada duplicada ao backend
        * por conta da atribuição de CEP realizada nas linhas acima
@@ -399,6 +406,28 @@ const CheckoutComponent = defineComponent({
           return
         }
       })
+
+      /**
+       * Watcher adicionado após a consulta inicial, de forma a evitar chamada duplicada ao backend
+       * por conta da atribuição de CEP realizada nas linhas acima
+       */
+      this.$watch('billingCEP', async (cep: string, oldCEP: string, cleanup: OnCleanup) => {
+        if (!regexTest(CEP_REGEX_VALIDATION, cep)) return
+
+        const controller = new AbortController()
+
+        cleanup(() => controller.abort())
+
+        const succeeded = await this.captureAddress(addressType.BILLING, cep, oldCEP, controller.signal)
+
+        if (!succeeded) {
+          scrollIntoView(this.billingCEPRef, SCROLL_INTO_VIEW_DEFAULT_ARGS)
+
+          return
+        }
+      })
+
+      isPageLoading(false)
     })
 
     this.debouncedOrderPrice = debounce(() => {
@@ -901,12 +930,13 @@ const CheckoutComponent = defineComponent({
 
       if (!cart) return []
 
-      return cart.items.map<RenderedProduct>(({ quantity, image_url, name, slug, ...rest }) => {
+      return cart.items.map<RenderedProduct>(({ quantity, image_url, name, slug, is_pod, ...rest }) => {
         const price = rest[betterPriceSystem]
 
         return {
           name,
           slug,
+          is_pod,
           quantity,
           price: BRLFormatter.format(price / 100),
           final_price: BRLFormatter.format(Math.round(price * quantity) / 100),
@@ -1358,8 +1388,9 @@ const CheckoutComponent = defineComponent({
         state: parseState(this.shippingState),
         ...(shippingComplement) && {
           complement: shippingComplement,
-        }
-      } satisfies IParsedAddress
+        },
+        recipient: this.shippingRecipient,
+      } satisfies ParsedAddressShipping
 
       const billingComplement = parseComplement(this.billingComplement)
 
@@ -1589,21 +1620,7 @@ const CheckoutComponent = defineComponent({
     /**
      * Observa as modificações realizadas no CEP do endereço de cobrança
      */
-    async billingCEP (cep: string, oldCEP: string, cleanup: OnCleanup): Promise<void> {
-      if (!regexTest(CEP_REGEX_VALIDATION, cep)) return
-
-      const controller = new AbortController()
-
-      cleanup(() => controller.abort())
-
-      const succeeded = await this.captureAddress(addressType.BILLING, cep, oldCEP, controller.signal)
-
-      if (!succeeded) {
-        scrollIntoView(this.billingCEPRef, SCROLL_INTO_VIEW_DEFAULT_ARGS)
-
-        return
-      }
-    },
+    // billingCEP: Este método foi movido para o hook `created`
 
     /**
      * Observa as modificações realizadas no CEP do endereço de entrega

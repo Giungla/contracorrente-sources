@@ -459,7 +459,7 @@ export interface User {
   is_subscriber: boolean;
 }
 
-export interface RenderedProduct extends Pick<ResponseItem, 'name' | 'slug' | 'quantity'> {
+export interface RenderedProduct extends Pick<ResponseItem, 'name' | 'slug' | 'quantity' | 'is_pod'> {
   /**
    * Preço do produto já tratado e formatado em BRL
    */
@@ -562,6 +562,13 @@ export interface PostOrderCustomer {
   birthDate: string;
 }
 
+export type ParsedAddressShipping = IParsedAddress & {
+  /**
+   * Nome da pessoa designada para recepção da entrega
+   */
+  recipient: string;
+};
+
 export interface IParsedAddressContent {
   /**
    * Endereço de cobrança
@@ -570,7 +577,7 @@ export interface IParsedAddressContent {
   /**
    * Endereço de entrega
    */
-  shippingaddress?: IParsedAddress;
+  shippingaddress?: IParsedAddress | ParsedAddressShipping;
 }
 
 export interface IParsedAddress {
