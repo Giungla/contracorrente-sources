@@ -26,7 +26,10 @@
     "tsup-floating-cart-both": "yarn tsup-floating-cart && yarn tsup-floating-cart-prod",
     "tsup-checkout": "tsup src/checkout.ts --format iife --minify terser --treeshake --out-dir dev --env.NODE_ENV production",
     "tsup-checkout-prod": "node build-commands/build-for-production.js --name=checkout",
-    "tsup-checkout-both": "yarn tsup-checkout && yarn tsup-checkout-prod"
+    "tsup-checkout-both": "yarn tsup-checkout && yarn tsup-checkout-prod",
+    "tsup-pix-page-v2": "tsup src/pix-process-v2.ts --format iife --minify terser --treeshake --out-dir dev --env.NODE_ENV production",
+    "tsup-pix-page-v2-prod": "node build-commands/build-for-production.js --name=pix-process-v2",
+    "tsup-pix-page-v2-both": "yarn tsup-pix-process-v2 && yarn tsup-pix-process-v2-prod"
   },
   "repository": {
     "type": "git",
