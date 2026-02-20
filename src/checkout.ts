@@ -159,7 +159,7 @@ import {
 
 const CHECKOUT_BASE_PATH = `${XANO_BASE_URL}/api:vvvJTKZJ`
 
-const PAGSEGURO_PUBLIC_KEY = getAttribute(document.currentScript, 'data-public-key')
+const PAGSEGURO_PUBLIC_KEY = getAttribute(document.currentScript, 'data-public-key') ?? 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoZ8+gUNjyc4RndTF0k5TIEFSL8gK6aSOPAdxzdMYGCkCYLAlfINFc6ZYK/yxIUKcZ13Ib00C5xOw0ucAE7xi1Lo+b9Xfxt94VNOS/zWz07vOWpfbThMRcgV4/ZurTULo2qdZ26BXq1fw+5j4GwW/9k44Rt/unyq2Q3FVy7a1MuZvKzwA5lYrt2HJAviKqHZm9YdqVZOCn+SM77903Aewc1XUo+SwTSwxcLE4jbjtJ8nE4cd5L1/hEVMmN5woTagtBHvv2BCTy2xZHrkCdGFAGHK2jPYJk4YkNX6fpSKeQRF49UqhxkGRulwKApspjMB8qrWu0ivHn4SZz5kwZJcKhwIDAQAB'
 
 if (isNull(PAGSEGURO_PUBLIC_KEY)) {
   throw new Error('`Public key was not provided')
@@ -634,9 +634,9 @@ const CheckoutComponent = defineComponent({
 
       localStorage.removeItem(STORAGE_KEY_NAME)
 
-      // location.href = buildURL(['/pagamento', redirectURL].join(SLASH_STRING), {
-      //   order: response.data.transactionid,
-      // })
+      location.href = buildURL(['/pagamento', redirectURL].join(SLASH_STRING), {
+        'order-id': response.data.transactionid,
+      })
     },
 
     /**
