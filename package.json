@@ -29,7 +29,10 @@
     "tsup-checkout-both": "yarn tsup-checkout && yarn tsup-checkout-prod",
     "tsup-pix-page-v2": "tsup src/pix-process-v2.ts --format iife --minify terser --treeshake --out-dir dev --env.NODE_ENV production",
     "tsup-pix-page-v2-prod": "node build-commands/build-for-production.js --name=pix-process-v2",
-    "tsup-pix-page-v2-both": "yarn tsup-pix-process-v2 && yarn tsup-pix-process-v2-prod"
+    "tsup-pix-page-v2-both": "yarn tsup-pix-process-v2 && yarn tsup-pix-process-v2-prod",
+    "tsup-order-page-v2": "tsup src/order-page.ts --format iife --minify terser --treeshake --out-dir dev --env.NODE_ENV production",
+    "tsup-order-page-v2-prod": "node build-commands/build-for-production.js --name=order-page",
+    "tsup-order-page-v2-both": "yarn tsup-order-page-v2 && yarn tsup-order-page-v2-prod"
   },
   "repository": {
     "type": "git",
