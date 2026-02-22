@@ -54,7 +54,7 @@ const DEFAULT_TIME = '00:00:00'
 
 const PROCESS_PAYMENT_URL = `${XANO_BASE_URL}/api:niMKesyM`
 
-const ORDER_CONFIRM_URL = '/order-confirmation'
+const ORDER_CONFIRM_URL = '/pagamento/confirmacao-do-pedido'
 
 const orderParameter = 'order-id'
 
