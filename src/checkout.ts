@@ -712,6 +712,7 @@ const CheckoutComponent = defineComponent({
       const defaultErrorMessage = 'Houve uma falhar ao finalizar o seu pedido'
 
       const {
+        coupon,
         couponCode,
         deliveryPlace,
         selectedShippingMethod,
@@ -734,7 +735,7 @@ const CheckoutComponent = defineComponent({
             // ...getMetaTrackingCookies(),
           ], HttpMethod.POST),
           body: stringify<PostOrder>({
-            ...(objectSize(trim(couponCode)) > 0 && {
+            ...(hasAppliedCoupon(coupon) && {
               coupon_code: couponCode,
             }),
             ...(!isNull(deliveryPlace) && {
