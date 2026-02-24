@@ -380,6 +380,14 @@ const CheckoutComponent = defineComponent({
         detailed_shipping,
       } = response.data
 
+      if (cart.cart_items < 1) {
+        location.href = buildURL('/', {
+          reason: 'cart_empty',
+        })
+
+        return
+      }
+
       if (user) {
         this.customerMail      = user.email
         this.customerCPF       = user.cpf ?? EMPTY_STRING
@@ -409,6 +417,11 @@ const CheckoutComponent = defineComponent({
       }
 
       this.cart = cart
+    })
+    .catch(() => {
+      location.href = buildURL('/', {
+        reason: 'failed_capturing_cart',
+      })
     })
     .finally(() => {
       /**
