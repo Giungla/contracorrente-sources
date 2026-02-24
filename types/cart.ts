@@ -61,6 +61,10 @@ export interface CartHandleParams {
 
 export interface ResponseItem {
   /**
+   * ID do produto
+   */
+  id: number;
+  /**
    * Título do produto
    */
   name: string;
@@ -88,6 +92,10 @@ export interface ResponseItem {
    * Identificador do SKU
    */
   sku_id: string;
+  /**
+   * Indica se o produto é um POD
+   */
+  is_pod: boolean;
 }
 
 export interface CartHandleResponse {

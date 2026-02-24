@@ -46,3 +46,4 @@ export const statesValues = Object.values(statesMap)
 
 export const EMPTY_STRING = '' as const
 export const SLASH_STRING = '/' as const
+export const DASH_STRING = '-' as const

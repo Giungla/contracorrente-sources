@@ -5,11 +5,14 @@ import {
   trim,
   isNull,
   isArray,
+  debounce,
+  buildURL,
   regexTest,
   splitText,
   stringify,
   numberOnly,
   objectSize,
+  focusInput,
   attachEvent,
   getAttribute,
   isPageLoading,
@@ -22,7 +25,8 @@ import {
   DATE_REGEX_VALIDATION,
   EMAIL_REGEX_VALIDATION,
   PHONE_REGEX_VALIDATION,
-  FULLNAME_REGEX_VALIDATION, focusInput, debounce, buildURL,
+  FULLNAME_REGEX_VALIDATION,
+  hasOwn,
 } from '../utils/dom'
 
 import {
@@ -36,22 +40,28 @@ import {
   EMPTY_STRING,
   statesAcronym,
   XANO_BASE_URL,
-  CEP_STORAGE_KEY, STORAGE_KEY_NAME,
+  CEP_STORAGE_KEY,
+  STORAGE_KEY_NAME,
 } from '../utils/consts'
 
 import {
+  type CartCouponParams,
+  type CartCouponResponse,
+  type CartCouponResponseError,
   type CheckoutAppData,
   type CheckoutAppSetup,
   type CheckoutInitialParams,
   type CheckoutInitialPayload,
   type CheckoutPaymentMethod,
+  type CouponRegister,
   type GetInstallmentsBody,
   type InstallmentItem,
   type IParsedAddress,
   type IParsedAddressContent,
   type ISingleValidateCheckout,
   type LabeledDeliveryOption,
-  type PagSeguroCardEncrypt, ParsedAddressShipping,
+  type PagSeguroCardEncrypt,
+  type ParsedAddressShipping,
   type PaymentResponseMap,
   type PostOrder,
   type PostOrderCreditCard,
@@ -157,9 +167,13 @@ import {
   type OnCleanup,
 } from '@vue/reactivity'
 
+import {
+  couponType,
+} from '../types/coupon'
+
 const CHECKOUT_BASE_PATH = `${XANO_BASE_URL}/api:vvvJTKZJ`
 
-const PAGSEGURO_PUBLIC_KEY = getAttribute(document.currentScript, 'data-public-key')
+const PAGSEGURO_PUBLIC_KEY = getAttribute(document.currentScript, 'data-public-key')  ?? 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoZ8+gUNjyc4RndTF0k5TIEFSL8gK6aSOPAdxzdMYGCkCYLAlfINFc6ZYK/yxIUKcZ13Ib00C5xOw0ucAE7xi1Lo+b9Xfxt94VNOS/zWz07vOWpfbThMRcgV4/ZurTULo2qdZ26BXq1fw+5j4GwW/9k44Rt/unyq2Q3FVy7a1MuZvKzwA5lYrt2HJAviKqHZm9YdqVZOCn+SM77903Aewc1XUo+SwTSwxcLE4jbjtJ8nE4cd5L1/hEVMmN5woTagtBHvv2BCTy2xZHrkCdGFAGHK2jPYJk4YkNX6fpSKeQRF49UqhxkGRulwKApspjMB8qrWu0ivHn4SZz5kwZJcKhwIDAQAB'
 
 if (isNull(PAGSEGURO_PUBLIC_KEY)) {
   throw new Error('`Public key was not provided')
@@ -220,6 +234,14 @@ async function searchAddress <T extends BaseAddress> ({ cep, signal }: SearchAdd
   } catch (e) {
     return postErrorResponse(defaultErrorMessage)
   }
+}
+
+function hasInvalidCoupon (coupon: Nullable<CouponRegister>): coupon is CartCouponResponseError {
+  return !isNull(coupon) && hasOwn(coupon, 'error')
+}
+
+function hasAppliedCoupon (coupon: Nullable<CouponRegister>): coupon is CartCouponResponse  {
+  return !isNull(coupon) && hasOwn(coupon, 'type')
 }
 
 const CheckoutComponent = defineComponent({
@@ -336,7 +358,9 @@ const CheckoutComponent = defineComponent({
 
       hasPendingPayment: false,
 
-      couponCode: NULL_VALUE,
+      coupon: NULL_VALUE,
+      isCouponPending: false,
+      couponCode: EMPTY_STRING,
     }
   },
 
@@ -697,7 +721,7 @@ const CheckoutComponent = defineComponent({
             // ...getMetaTrackingCookies(),
           ], HttpMethod.POST),
           body: stringify<PostOrder>({
-            ...(!isNull(couponCode) && {
+            ...(objectSize(trim(couponCode)) > 0 && {
               coupon_code: couponCode,
             }),
             ...(!isNull(deliveryPlace) && {
@@ -856,6 +880,73 @@ const CheckoutComponent = defineComponent({
 
       this.selectedInstallmentOption = installmentsCount
     },
+
+    /**
+     * Busca os dados du cupom indicado
+     */
+    async searchCoupon <T extends CartCouponResponse> (code: string): Promise<ResponsePattern<CartCouponResponse>> {
+      const defaultErrorMessage = 'Houve uma falha ao aplicar o cupom'
+
+      this.isCouponPending = true
+
+      try {
+        const cartPath = getCartHandlerPath()
+
+        const response = await fetch(`${CHECKOUT_BASE_PATH}/validate_coupon/${cartPath}`, {
+          ...buildRequestOptions([], HttpMethod.POST),
+          priority: 'high',
+          body: stringify<CartCouponParams>({
+            code,
+          }),
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+
+          return postErrorResponse.call<
+            Response, [string], FunctionErrorPattern
+          >(response, error?.message ?? defaultErrorMessage)
+        }
+
+        const data: T = await response.json()
+
+        return postSuccessResponse.call<
+          Response, [T, ResponsePatternCallback?], FunctionSucceededPattern<T>
+        >(response, data)
+      } catch (e) {
+        return postErrorResponse(defaultErrorMessage)
+      } finally {
+        this.isCouponPending = false
+      }
+    },
+
+    /**
+     * Realiza a busca por um cupom e registra seus dados em caso de sucesso
+     */
+    async handleSearchCoupon (): Promise<void> {
+      if (this.isCouponPending || !this.isCouponCodeValid) return
+
+      const response = await this.searchCoupon(this.couponCode)
+
+      if (!response.succeeded) {
+        this.coupon = {
+          error: true,
+          message: response.message,
+        } satisfies CartCouponResponseError
+
+        return
+      }
+
+      this.coupon = response.data
+    },
+
+    /**
+     * Remove um cupom previamente aplicado
+     */
+    handleRemoveCoupon (): void {
+      this.coupon     = NULL_VALUE
+      this.couponCode = EMPTY_STRING
+    },
   },
 
   computed: {
@@ -917,6 +1008,31 @@ const CheckoutComponent = defineComponent({
      */
     hasSelectedAddress (): boolean {
       return !isNull(this.deliveryPlace)
+    },
+
+    /**
+     * Indica se existe um cupom aplicado
+     */
+    hasAppliedCoupon (): boolean {
+      return hasAppliedCoupon(this.coupon)
+    },
+
+    /**
+     * Indica se um cupom inválido foi aplicado
+     */
+    hasInvalidCoupon (): boolean {
+      return hasInvalidCoupon(this.coupon)
+    },
+
+    /**
+     * Indica se o código do cupom fornecido no frontend é válido
+     */
+    isCouponCodeValid (): boolean {
+      const {
+        couponCode,
+      } = this
+
+      return objectSize(trim(couponCode)) > 3 && regexTest(/^[A-Z\d]+$/, couponCode)
     },
 
     /**
@@ -1510,22 +1626,40 @@ const CheckoutComponent = defineComponent({
      * Indica qual grupo de preços é mais vantajoso para o usuário
      */
     betterPriceSystem (): PriceTypes {
-      // TODO
-      // const {
-      //   cart,
-      //   isSubscriber,
-      // } = this
+      const {
+        coupon,
+        isSubscriber,
+      } = this
+
+      if (isSubscriber && hasAppliedCoupon(coupon)) {
+        if (coupon.type === couponType.SHIPPING) {
+          return priceType.FULL_PRICE
+        }
+
+        return priceType.PRICE
+      }
+
+      if (isSubscriber) {
+        return priceType.FULL_PRICE
+      }
 
       return priceType.PRICE
+    },
 
-      // TODO: exibir corretamente os preços para assinante na v2
-      // if (!cart) return priceType.PRICE
-      //
-      // if (isSubscriber) {
-      //   return priceType.FULL_PRICE
-      // }
-      //
-      // return priceType.PRICE
+    /**
+     * Indica se o usuário está usando o desconto de assinatura
+     * O desconto de assinatura não será usado nos casos em que o usuário autenticado não for assinante
+     * Ou um desconto aplicado por cupom sob o subtotal/isbn do pedido tenha um benefício maior que o da assinatura
+     */
+    isUsingSubscription (): boolean {
+      const {
+        isSubscriber,
+        betterPriceSystem,
+      } = this
+
+      if (!isSubscriber) return false
+
+      return betterPriceSystem === priceType.FULL_PRICE
     },
 
     /**
@@ -1567,12 +1701,62 @@ const CheckoutComponent = defineComponent({
     },
 
     /**
+     * Retorna o valor de desconto fornecido por cupom
+     */
+    getCouponDiscountPrice (): number {
+      if (!this.hasAppliedCoupon || this.hasInvalidCoupon) return 0
+
+      const {
+        value,
+        is_percentage,
+      } = this.coupon as CartCouponResponse
+
+      const selectedPrice = this.getParsedPriceForApplyDiscount
+
+      const discountPrice: number = is_percentage
+        ? Math.round(selectedPrice * (value / 100))
+        : Math.min(selectedPrice, value)
+
+      return discountPrice
+    },
+
+    /**
+     * Retorna o valor de `getCouponDiscountPrice` formatado em BRL
+     */
+    getCouponDiscountPriceFormatted (): string {
+      return BRLFormatter.format(this.getCouponDiscountPrice / -100)
+    },
+
+    /**
+     * Retorna o valor de desconto que será fornecido devido a existência de assinatura
+     */
+    getSubscriptionDiscountPrice (): number {
+      const {
+        cart,
+        isUsingSubscription,
+      } = this
+
+      if (!isUsingSubscription || !cart) return 0
+
+      return Math.round(cart.order_full_price * SUBSCRIPTION_DISCOUNT)
+    },
+
+    /**
+     * Retorna o valor de desconto por assinatura formatado em BRL
+     */
+    getSubscriptionDiscountPriceFormatted (): string {
+      return BRLFormatter.format(this.getSubscriptionDiscountPrice / -100)
+    },
+
+    /**
      * Retorna o valor total do pedido
      */
     getOrderPrice (): number {
       const finalPrice = [
         this.getOrderSubtotal,
         this.getShippingPrice,
+        -this.getCouponDiscountPrice,
+        -this.getSubscriptionDiscountPrice,
       ]
 
       return decimalRound(
@@ -1613,6 +1797,37 @@ const CheckoutComponent = defineComponent({
      */
     getShippingPriceFormatted (): string {
       return BRLFormatter.format(this.getShippingPrice / 100)
+    },
+
+    /**
+     * Retorna o preço que será usado para aplicação de desconto fornecido por cupons
+     */
+    getParsedPriceForApplyDiscount (): number {
+      const {
+        cart,
+        coupon,
+        getShippingPrice,
+        hasAppliedCoupon,
+        hasInvalidCoupon,
+        getOrderSubtotal,
+      } = this
+
+      if (!hasAppliedCoupon || hasInvalidCoupon || isNull(cart)) return 0
+
+      const {
+        type,
+        product_id,
+      } = coupon as CartCouponResponse
+
+      const isbn = type === couponType.ISBN
+        ? cart.items.find(product => product.id === product_id)?.price ?? 0
+        : 0
+
+      return {
+        isbn,
+        shipping: getShippingPrice,
+        subtotal: getOrderSubtotal,
+      }[type]
     },
   },
 

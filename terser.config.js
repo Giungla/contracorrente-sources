@@ -23,5 +23,18 @@ module.exports = {
   },
   output: {
     comments: false            // remove comentários
-  }
+  },
+  env: {
+    NODE_ENV: 'production',
+  },
+  define: {
+    __VUE_OPTIONS_API__: 'true',
+    __VUE_PROD_DEVTOOLS__: 'false',
+  },
+  // esbuildOptions(options) {
+  //   options.alias = {
+  //     // vue: 'vue/dist/vue.esm-bundler.js',
+  //     vue: 'vue/dist/vue.esm-browser.prod.js',
+  //   }
+  // },
 }

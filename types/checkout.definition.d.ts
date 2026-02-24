@@ -62,6 +62,51 @@ import {
 //   is_percentage: boolean;
 // }
 
+/**
+ * Indica os tipos de cupom existentes na base de dados
+ */
+export type CouponType = 'isbn' | 'subtotal' | 'shipping';
+
+export interface CartCouponResponse {
+  /**
+   * Valor de desconto fornecido pelo cupom
+   */
+  value: number;
+  /**
+   * Indica se `value` representa um valor absoluto ou percentual
+   */
+  is_percentage: boolean;
+  /**
+   * Indica os tipos possíveis de cupom
+   */
+  type: CouponType;
+  /**
+   * Código de aplicação do cupom
+   */
+  code: string;
+  /**
+   * Nome do cupom, apresentado ao usuário após sua aplicação
+   */
+  name: string;
+  /**
+   * ID do produto para o qual o desconto se aplica, se `type` for `ISBN`
+   */
+  product_id: Nullable<number>;
+}
+
+export interface CartCouponResponseError {
+  /**
+   * Indica a existência de erro
+   */
+  error: true;
+  /**
+   * Mensagem de erro retornada pelo backend
+   */
+  message: string;
+}
+
+export type CouponRegister = CartCouponResponse | CartCouponResponseError;
+
 export interface CheckoutAppSetup {
   /**
    * CPF do usuário
@@ -403,7 +448,17 @@ export interface CheckoutAppData {
   /**
    * Código do cupom aplicado
    */
-  couponCode: Nullable<string>;
+  couponCode: string;
+
+  /**
+   * Indica se existe uma operação de captura de cupom em andamento
+   */
+  isCouponPending: boolean;
+
+  /**
+   * Registra os dados do cupom capturado ou o registro de erro em caso de falha
+   */
+  coupon: Nullable<CouponRegister>;
 }
 
 export interface CheckoutInitialParams {
@@ -740,4 +795,11 @@ declare global {
   interface Window {
     PagSeguro: PagSeguro;
   }
+}
+
+export interface CartCouponParams {
+  /**
+   * Código do cupom
+   */
+  code: string;
 }
