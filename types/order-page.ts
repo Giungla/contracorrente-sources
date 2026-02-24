@@ -140,12 +140,34 @@ export type ResponseShippingAddress = ResponseAddress & {
   user_name?: string;
 };
 
+interface HasntDiscount {
+  /**
+   * Não existe desconto aplicado
+   */
+  has: false;
+}
+
+interface HasDiscount {
+  /**
+   * Existe desconto aplicado
+   */
+  has: true;
+  /**
+   * Valor do desconto aplicado
+   */
+  discount_price: number;
+}
+
+type Discount = HasDiscount | HasntDiscount
+
 export interface Order extends Omit<OrderSchema, 'id'> {
   user: ResponseUser;
   items: OrderItemSchema[];
   shipping: OrderShipping;
   billing_address: ResponseAddress;
   shipping_address: ResponseAddress;
+  coupon: Discount;
+  subscription: Discount;
 }
 
 export interface OrderPageData {

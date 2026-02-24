@@ -201,6 +201,50 @@ const OrderPage = defineComponent({
     },
 
     /**
+     * Indica se o pedido possui desconto por cupom aplicado
+     */
+    hasAppliedCoupon (): boolean {
+      return this.order?.coupon.has ?? false
+    },
+
+    /**
+     * Indica se o pedido
+     */
+    hasSubscriptionDiscount (): boolean {
+      return this.order?.subscription.has ?? false
+    },
+
+    /**
+     * Retorna o valor de desconto fornecido por cupom
+     */
+    getOrderDiscountPriceFormatted (): string {
+      const {
+        order,
+      } = this
+
+      const value = isNull(order) || !order.coupon.has
+        ? 0
+        : order.coupon.discount_price / -100
+
+      return BRLFormatter.format(value)
+    },
+
+    /**
+     * Retorna o valor de desconto fornecido por assinatura
+     */
+    getSubscriptionDiscountPriceFormatted (): string {
+      const {
+        order,
+      } = this
+
+      const value = isNull(order) || !order.subscription.has
+        ? 0
+        : order.subscription.discount_price / -100
+
+      return BRLFormatter.format(value)
+    },
+
+    /**
      * Retorna a lista de produtos adquiridos
      */
     getParsedProducts (): ParsedProduct[] {
