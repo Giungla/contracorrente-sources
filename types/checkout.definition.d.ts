@@ -564,6 +564,21 @@ export interface SearchAddressParams {
    * Signal para controle externo da requisição
    */
   signal?: AbortSignal;
+  /**
+   * Indica se os dados de entrega devem retornar na requisição
+   */
+  include_delivery: boolean;
+}
+
+export interface AddressWithDelivery {
+  /**
+   * Dados do endereço
+   */
+  address: BaseAddress;
+  /**
+   * Opções de entrega
+   */
+  delivery_details?: DeliveryOption[];
 }
 
 export interface LabeledDeliveryOption extends Pick<DeliveryOption, 'coProduto'> {

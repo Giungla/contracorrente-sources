@@ -45,6 +45,7 @@ import {
 } from '../utils/consts'
 
 import {
+  AddressWithDelivery,
   type CartCouponParams,
   type CartCouponResponse,
   type CartCouponResponseError,
@@ -131,7 +132,6 @@ import {
 import {
   addressType,
   AddressTypes,
-  type BaseAddress,
 } from '../types/address'
 
 import {
@@ -173,7 +173,7 @@ import {
 
 const CHECKOUT_BASE_PATH = `${XANO_BASE_URL}/api:vvvJTKZJ`
 
-const PAGSEGURO_PUBLIC_KEY = getAttribute(document.currentScript, 'data-public-key')
+const PAGSEGURO_PUBLIC_KEY = getAttribute(document.currentScript, 'data-public-key') ?? 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoZ8+gUNjyc4RndTF0k5TIEFSL8gK6aSOPAdxzdMYGCkCYLAlfINFc6ZYK/yxIUKcZ13Ib00C5xOw0ucAE7xi1Lo+b9Xfxt94VNOS/zWz07vOWpfbThMRcgV4/ZurTULo2qdZ26BXq1fw+5j4GwW/9k44Rt/unyq2Q3FVy7a1MuZvKzwA5lYrt2HJAviKqHZm9YdqVZOCn+SM77903Aewc1XUo+SwTSwxcLE4jbjtJ8nE4cd5L1/hEVMmN5woTagtBHvv2BCTy2xZHrkCdGFAGHK2jPYJk4YkNX6fpSKeQRF49UqhxkGRulwKApspjMB8qrWu0ivHn4SZz5kwZJcKhwIDAQAB'
 
 if (isNull(PAGSEGURO_PUBLIC_KEY)) {
   throw new Error('`Public key was not provided')
@@ -205,7 +205,7 @@ function buildFieldValidation (
   }
 }
 
-async function searchAddress <T extends BaseAddress> ({ cep, signal }: SearchAddressParams): Promise<ResponsePattern<T>> {
+async function searchAddress <T extends AddressWithDelivery> ({ cep, signal, include_delivery = false }: SearchAddressParams): Promise<ResponsePattern<T>> {
   const defaultErrorMessage = 'Não foi possível encontrar o endereço'
 
   try {
@@ -214,6 +214,7 @@ async function searchAddress <T extends BaseAddress> ({ cep, signal }: SearchAdd
       signal,
       priority: 'high',
       body: stringify({
+        include_delivery,
         cep: numberOnly(cep),
       }),
     })
@@ -435,13 +436,15 @@ const CheckoutComponent = defineComponent({
 
         cleanup(() => controller.abort())
 
-        const succeeded = await this.captureAddress(addressType.SHIPPING, cep, oldCEP, controller.signal)
+        const succeeded = await this.captureAddress(addressType.SHIPPING, cep, oldCEP, controller.signal, true)
 
         if (!succeeded) {
           scrollIntoView(this.shippingCEPRef, SCROLL_INTO_VIEW_DEFAULT_ARGS)
 
           return
         }
+
+        localStorage.setItem(CEP_STORAGE_KEY, numberOnly(cep))
       })
 
       /**
@@ -455,12 +458,18 @@ const CheckoutComponent = defineComponent({
 
         cleanup(() => controller.abort())
 
-        const succeeded = await this.captureAddress(addressType.BILLING, cep, oldCEP, controller.signal)
+        const include_delivery = this.isSameAddress || !this.hasSelectedAddress
+
+        const succeeded = await this.captureAddress(addressType.BILLING, cep, oldCEP, controller.signal, include_delivery)
 
         if (!succeeded) {
           scrollIntoView(this.billingCEPRef, SCROLL_INTO_VIEW_DEFAULT_ARGS)
 
           return
+        }
+
+        if (include_delivery) {
+          localStorage.setItem(CEP_STORAGE_KEY, numberOnly(cep))
         }
       })
 
@@ -468,6 +477,13 @@ const CheckoutComponent = defineComponent({
     })
 
     this.debouncedOrderPrice = debounce(() => {
+      const {
+        hasErrors,
+        encryptedCard,
+      } = this.getCreditCardToken
+
+      if (hasErrors || isNull(encryptedCard)) return
+
       this.refreshInstallments()
     }, 500)
   },
@@ -512,34 +528,45 @@ const CheckoutComponent = defineComponent({
     /**
      * Captura os preços e prazos de entrega para os produtos incluídos no carrinho
      */
-    async getShippingPriceAndDeadline <T extends DeliveryOption[]> (cep: string): Promise<ResponsePattern<DeliveryOption[]>> {
-      const defaultErrorMessage = 'Houve uma falha ao buscar os dados de entrega'
+    // async getShippingPriceAndDeadline <T extends DeliveryOption[]> (cep: string, signal?: AbortSignal): Promise<ResponsePattern<DeliveryOption[]>> {
+    //   const defaultErrorMessage = 'Houve uma falha ao buscar os dados de entrega'
+    //
+    //   try {
+    //     const response = await fetch(`${CHECKOUT_BASE_PATH}/get_delivery_price_deadline`, {
+    //       ...buildRequestOptions([], HttpMethod.POST),
+    //       signal,
+    //       body: stringify({
+    //         cep,
+    //       }),
+    //     })
+    //
+    //     if (!response.ok) {
+    //       const error = await response.json()
+    //
+    //       return postErrorResponse.call<
+    //         Response, [string], FunctionErrorPattern
+    //       >(response, error?.message ?? defaultErrorMessage)
+    //     }
+    //
+    //     const data: T = await response.json()
+    //
+    //     return postSuccessResponse.call<
+    //       Response, [T, ResponsePatternCallback?], FunctionSucceededPattern<T>
+    //     >(response, data)
+    //   } catch (e) {
+    //     return postErrorResponse(defaultErrorMessage)
+    //   }
+    // },
 
-      try {
-        const response = await fetch(`${CHECKOUT_BASE_PATH}/get_delivery_price_deadline`, {
-          ...buildRequestOptions([], HttpMethod.POST),
-          body: stringify({
-            cep,
-          }),
-        })
-
-        if (!response.ok) {
-          const error = await response.json()
-
-          return postErrorResponse.call<
-            Response, [string], FunctionErrorPattern
-          >(response, error?.message ?? defaultErrorMessage)
-        }
-
-        const data: T = await response.json()
-
-        return postSuccessResponse.call<
-          Response, [T, ResponsePatternCallback?], FunctionSucceededPattern<T>
-        >(response, data)
-      } catch (e) {
-        return postErrorResponse(defaultErrorMessage)
-      }
-    },
+    // async handleQueryShippingDetails (cep: string, signal: AbortSignal): Promise<void> {
+    //   const response = await this.getShippingPriceAndDeadline(cep, signal)
+    //
+    //   if (!response.succeeded) {
+    //     return
+    //   }
+    //
+    //   this.detailedShipping = response.data
+    // },
 
     /**
      * Troca o método de pagamento selecionado
@@ -563,13 +590,24 @@ const CheckoutComponent = defineComponent({
     setDeliveryPlace (deliveryPlace: DeliveryTypes): void {
       if (this.deliveryPlace === deliveryPlace) return
 
-      if (deliveryPlace === deliveryType.SAME && regexTest(CEP_REGEX_VALIDATION, this.billingCEP) && this.isBillingAddressGroupValid) {
+      if (deliveryPlace === deliveryType.SAME && this.billingCEPValidation.valid) {
         searchAddress({
           cep: numberOnly(this.billingCEP),
+          include_delivery: true,
         }).then(address => {
-          if (address.succeeded) return
+          if (!address.succeeded) {
+            this.deliveryPlaceAddressErrorMessage = address.message
 
-          this.deliveryPlaceAddressErrorMessage = address.message
+            return
+          }
+
+          const {
+            delivery_details,
+          } = address.data
+
+          if (delivery_details) {
+            this.detailedShipping = delivery_details
+          }
         })
       } else {
         this.deliveryPlaceAddressErrorMessage = NULL_VALUE
@@ -830,28 +868,38 @@ const CheckoutComponent = defineComponent({
     /**
      * Captura e retorna o endereço do CEP solicitado
      */
-    async captureAddress (addressType: AddressTypes, cep: string, oldCep: string, signal?: AbortSignal): Promise<boolean> {
+    async captureAddress (_addressType: AddressTypes, cep: string, oldCep: string, signal: AbortSignal, include_delivery: boolean = false): Promise<boolean> {
       if (!regexTest(CEP_REGEX_VALIDATION, cep) || cep === oldCep) return false
 
-      const targetField: `${AddressTypes}CEP` = `${addressType}CEP`
+      const targetField: `${AddressTypes}CEP` = `${_addressType}CEP`
 
       const response = await searchAddress({
         cep,
         signal,
+        include_delivery,
       })
 
       if (!response.succeeded) {
         this.setVisitedField(targetField)
 
-        this.clearAddress(addressType)
+        this.clearAddress(_addressType)
 
         return false
       }
 
-      this[`${addressType}Address`]      = response.data.logradouro
-      this[`${addressType}Neighborhood`] = response.data.bairro
-      this[`${addressType}State`]        = response.data.uf
-      this[`${addressType}City`]         = response.data.localidade
+      const {
+        address,
+        delivery_details,
+      } = response.data
+
+      this[`${_addressType}Address`]      = address.logradouro
+      this[`${_addressType}Neighborhood`] = address.bairro
+      this[`${_addressType}State`]        = address.uf
+      this[`${_addressType}City`]         = address.localidade
+
+      if (delivery_details) {
+        this.detailedShipping = delivery_details
+      }
 
       return true
     },
@@ -1308,7 +1356,7 @@ const CheckoutComponent = defineComponent({
     shippingRecipientValidation (): ISingleValidateCheckout {
       return buildFieldValidation(
         this.shippingRecipientRef,
-        !this.isVisitedField('shippingRecipient') || regexTest(/^(\w{2,})(\s+(\w+))+$/, normalizeText(this.shippingRecipient)),
+        !this.isVisitedField('shippingRecipient') || regexTest(/^(\w{2,})(\s+(\w+))+$/, normalizeText(trim(this.shippingRecipient))),
         !this.shouldValidateShippingAddress,
       )
     },
@@ -1496,7 +1544,7 @@ const CheckoutComponent = defineComponent({
 
       if (isNull(selectedPaymentMethod)) return false
 
-      return (hasShippingDetails && includes([paymentType.PIX, paymentType.TICKET], selectedPaymentMethod)) || (isCreditCard && hasSelectedDeliveryPlace)
+      return hasShippingDetails && ((hasShippingDetails && includes([paymentType.PIX, paymentType.TICKET], selectedPaymentMethod)) || (isCreditCard && hasSelectedDeliveryPlace))
     },
 
     /**
@@ -1869,10 +1917,76 @@ const CheckoutComponent = defineComponent({
     /**
      * Observa as modificações realizadas no token de encriptação gerado pelo PagSeguro
      */
-    getCreditCardToken (payload: PagSeguroCardEncrypt, oldPayload: PagSeguroCardEncrypt): void {
-      if (payload.hasErrors || payload.hasErrors === oldPayload.hasErrors) return
+    // getCreditCardToken (payload: PagSeguroCardEncrypt, oldPayload: PagSeguroCardEncrypt): void {
+    //   const {
+    //     hasErrors,
+    //     encryptedCard,
+    //   } = payload
+    //
+    //   if (isNull(encryptedCard) || hasErrors || hasErrors === oldPayload.hasErrors) return
+    //
+    //   this.refreshInstallments()
+    // },
+    customerCreditCardNumber (cardNumber: string) {
+      if (objectSize(cardNumber) < 6) {
+        this.installment               = NULL_VALUE
+        this.selectedInstallmentOption = NULL_VALUE
+
+        return
+      }
 
       this.refreshInstallments()
+    },
+
+    deliveryPlace (deliveryPlace: Nullable<DeliveryTypes>, _, cleanup: OnCleanup) {
+      if (!deliveryPlace) return
+
+      this.clearAddress(addressType.SHIPPING)
+
+      this.detailedShipping = NULL_VALUE
+      this.selectedShippingMethod = NULL_VALUE
+
+      switch (deliveryPlace) {
+        case deliveryType.SAME:
+          return
+          // {
+          //   if (!this.billingCEPValidation.valid) {
+          //     this.clearAddress(addressType.BILLING)
+          //
+          //     this.detailedShipping = NULL_VALUE
+          //
+          //     return localStorage.removeItem(CEP_STORAGE_KEY)
+          //   }
+          //
+          //   localStorage.setItem(CEP_STORAGE_KEY, numberOnly(this.billingCEP))
+          //
+          //   break
+          // }
+        case deliveryType.DIFF:
+          {
+            if (!this.shippingCEPValidation.valid) {
+              this.clearAddress(addressType.SHIPPING)
+
+              this.detailedShipping = NULL_VALUE
+
+              return localStorage.removeItem(CEP_STORAGE_KEY)
+            }
+
+            localStorage.setItem(CEP_STORAGE_KEY, numberOnly(this.shippingCEP))
+          }
+      }
+
+      const abortController = new AbortController()
+
+      cleanup(() => abortController.abort())
+
+      this.captureAddress(
+        addressType.SHIPPING,
+        this.shippingCEP,
+        EMPTY_STRING,
+        abortController.signal,
+        true,
+      )
     },
   },
 
