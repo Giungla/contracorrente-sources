@@ -49,7 +49,8 @@ import {
   isInputInstance,
   isNull,
   addClass,
-  objectSize, getAttribute,
+  objectSize,
+  getAttribute,
 } from '../utils/dom'
 
 import {
@@ -76,6 +77,7 @@ import {
   type CartHandleParams,
   type CartHandleResponse,
 } from '../types/cart'
+import {viewContentTracking} from "../utils/tracking";
 
 const productSlug = location.pathname.split(SLASH_STRING).at(-1)
 
@@ -238,6 +240,32 @@ const state = new Proxy<ProductState>({
         renderSKUItems()
         renderSelectedSKUPrices()
         renderFinalPrice()
+
+        {
+          const selectedSkuId = getSelectedSKU()?.id
+
+          if (selectedSkuId) {
+            viewContentTracking({
+              type: 'product',
+              payload: {
+                sku_id: selectedSkuId,
+                reference_id: productSlug,
+              },
+            }).then(response => {
+              if (!response.succeeded) return
+
+              const {
+                event_id,
+                event_body,
+              } = response.data.meta
+
+              fbq?.('track', 'ViewContent', event_body, {
+                eventID: event_id,
+              })
+            })
+          }
+        }
+
         break
       case 'quantity':
         {
@@ -496,6 +524,7 @@ function renderSKUItems () {
       if (isSelected) return
 
       state.selectedSku = sku.sku_id
+
       if (state.quantity !== 1) state.quantity = 1
     })
 

@@ -26,6 +26,10 @@ export interface Product {
 
 export interface SKU {
   /**
+   * ID único do SKU na base
+   */
+  id: number;
+  /**
    * Descreve o tipo da variação
    */
   variation_type: string;
