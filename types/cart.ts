@@ -37,7 +37,7 @@ export interface CartHandleItem {
   /**
    * Identificador único do SKU
    */
-  sku_id: string;
+  sku_id: number;
   /**
    * Quantidade de unidades do SKU
    */
@@ -57,6 +57,11 @@ export interface CartHandleParams {
    * Operação que será realizada
    */
   operation: CartHandleOperations;
+  /**
+   * Indica se a adição é para compra imediata
+   * Em caso positivo, o produto será adicionado e todos os presentes serão removidos
+   */
+  immediate: boolean;
 }
 
 export interface ResponseItem {

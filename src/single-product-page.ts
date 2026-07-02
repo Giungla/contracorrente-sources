@@ -74,10 +74,15 @@ import {
 import {
   cartOperations,
   getCartHandlerPath,
+  type CartHandleItem,
   type CartHandleParams,
   type CartHandleResponse,
 } from '../types/cart'
-import {viewContentTracking} from "../utils/tracking";
+
+import {
+  addToCartTracking,
+  viewContentTracking,
+} from '../utils/tracking'
 
 const productSlug = location.pathname.split(SLASH_STRING).at(-1)
 
@@ -321,7 +326,7 @@ async function handleDeliveryPrice (cepField: HTMLInputElement): Promise<void> {
     : NULL_VALUE
 }
 
-async function acquireItem (immediate?: boolean): Promise<void> {
+async function acquireItem (immediate: boolean = false): Promise<void> {
   if (state.isManipulatingCart) return
 
   state.isManipulatingCart = true
@@ -335,16 +340,16 @@ async function acquireItem (immediate?: boolean): Promise<void> {
     throw new Error('Nenhum SKU foi selecionado')
   }
 
+  const addToCartParams = ({
+    quantity,
+    sku_id: selectedSku,
+    reference_id: productSlug as string,
+  } satisfies CartHandleItem)
+
   const response = await addProductToCart({
-    item: {
-      quantity,
-      sku_id: selectedSku,
-      reference_id: productSlug as string,
-    },
+    immediate,
+    item: addToCartParams,
     operation: cartOperations.ADD,
-    ...(immediate && {
-      immediate,
-    }),
   })
 
   state.isManipulatingCart = false
@@ -355,15 +360,30 @@ async function acquireItem (immediate?: boolean): Promise<void> {
 
   state.quantity = 1
 
-  if (immediate) {
-    location.href = getAttribute(buyNowCTA, 'href') ?? SLASH_STRING
+  addToCartTracking(addToCartParams)
+    .then(_response => {
+      if (!_response.succeeded) return
 
-    return
-  }
+      const {
+        event_id,
+        event_data,
+      } = _response.data
 
-  addClass(querySelector('#carrinho-flutuante'), CART_SWITCH_CLASS)
+      fbq?.('track', 'AddToCart', event_data, {
+        eventID: event_id,
+      })
+    })
+    .finally(() => {
+      if (immediate) {
+        location.href = getAttribute(buyNowCTA, 'href') ?? SLASH_STRING
 
-  localStorage.setItem(STORAGE_KEY_NAME, stringify<CartHandleResponse>(response.data))
+        return
+      }
+
+      addClass(querySelector('#carrinho-flutuante'), CART_SWITCH_CLASS)
+
+      localStorage.setItem(STORAGE_KEY_NAME, stringify<CartHandleResponse>(response.data))
+    })
 }
 
 async function getProduct <T extends SingleProductResponse> (slug: string): Promise<ResponsePattern<T>> {
@@ -495,7 +515,7 @@ function handleIncomingProduct (product: ResponsePattern<SingleProductResponse>)
 
   state.isSubscriber = product.data.is_subscriber ?? false
   state.skus         = product.data.skus
-  state.selectedSku  = product.data.skus.at(0)?.sku_id ?? NULL_VALUE
+  state.selectedSku  = product.data.skus.at(0)?.id ?? NULL_VALUE
 
   const previousCEPValue = localStorage.getItem(CEP_STORAGE_KEY)
 
@@ -511,7 +531,7 @@ function renderSKUItems () {
     // @ts-ignore
     const skuAnchor = skuSelectorTemplate.cloneNode(true) as HTMLAnchorElement
 
-    const isSelected = sku.sku_id === state.selectedSku
+    const isSelected = sku.id === state.selectedSku
 
     changeTextContent(skuAnchor, sku.variation_type)
 
@@ -523,7 +543,7 @@ function renderSKUItems () {
 
       if (isSelected) return
 
-      state.selectedSku = sku.sku_id
+      state.selectedSku = sku.id
 
       if (state.quantity !== 1) state.quantity = 1
     })
@@ -632,7 +652,7 @@ function getSelectedSKU (): SKU | undefined {
     selectedSku,
   } = state
 
-  return skus.find(sku => selectedSku === sku.sku_id)
+  return skus.find(sku => selectedSku === sku.id)
 }
 
 async function handleDeliveryInfo (): Promise<undefined | boolean> {

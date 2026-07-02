@@ -7,6 +7,8 @@ import {
 } from '../types/global'
 
 import {
+  type AddToCartTrackingParams,
+  type AddToCartTrackingResponse,
   type InitiateCheckoutResponse,
   type PageViewResponse,
   type ViewContentParams,
@@ -233,6 +235,37 @@ export async function initiateCheckoutTracking <T extends InitiateCheckoutRespon
 
     return postSuccessResponse.call<
       Response, [T, ResponsePatternCallback?], FunctionSucceededPattern<T>
+    >(response, data)
+  } catch (e) {
+    return postErrorResponse(defaultErrorMessage)
+  }
+}
+
+export async function addToCartTracking <T extends AddToCartTrackingParams, R extends AddToCartTrackingResponse> (payload: T): Promise<ResponsePattern<R>> {
+  const defaultErrorMessage = 'Não foi possível registrar o evento'
+
+  try {
+    const response = await fetch(`${TRACKING_BASE_URL}/event/add_to_cart/${getCartHandlerPath()}`, {
+      ...buildRequestOptions([
+        ...getMetaTrackingCookies(),
+      ], HttpMethod.POST),
+      priority,
+      keepalive,
+      body: stringify<T>(payload),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+
+      return postErrorResponse.call<
+        Response, [string], FunctionErrorPattern
+      >(response, error)
+    }
+
+    const data: R = await response.json()
+
+    return postSuccessResponse.call<
+      Response, [R, ResponsePatternCallback?], FunctionSucceededPattern<R>
     >(response, data)
   } catch (e) {
     return postErrorResponse(defaultErrorMessage)

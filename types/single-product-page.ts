@@ -85,7 +85,7 @@ export interface ProductState {
   /**
    * Indica o SKU selecionado
    */
-  selectedSku: Nullable<string>;
+  selectedSku: Nullable<number>;
   /**
    * Quantidade de unidades selecionada
    */

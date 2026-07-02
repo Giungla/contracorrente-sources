@@ -107,3 +107,58 @@ export interface ViewContentResponse {
     };
   }
 }
+
+
+
+
+
+
+
+export interface AddToCartTrackingParams {
+  /**
+   * Identificador do SKU
+   */
+  sku_id: number;
+  /**
+   * Quantidade de itens adicionados
+   */
+  quantity: number;
+  /**
+   * Identificador do produto
+   */
+  reference_id: string;
+}
+
+export interface AddToCartContentsTracking {
+  /**
+   * Identificador do produto
+   */
+  id: string;
+  /**
+   * Quantidade de itens
+   */
+  quantity: number;
+  /**
+   * Valor unitário do produto
+   */
+  item_price: number;
+}
+
+export interface AddToCartTrackingEventData {
+  value: number;
+  currency: string;
+  content_ids: string[];
+  content_type: string;
+  contents: AddToCartContentsTracking[];
+}
+
+export interface AddToCartTrackingResponse {
+  /**
+   * Identificador do evento gerado no backend
+   */
+  event_id: string;
+  /**
+   * Dados do evento, no padrão exigido pelo serviço de tracking da Meta
+   */
+  event_data: AddToCartTrackingEventData;
+}
