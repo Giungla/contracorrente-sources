@@ -114,20 +114,20 @@ export interface OrderItemSchema extends V2Product {
   title: string;
 }
 
-export interface OrderShipping {
-  /**
-   * Preço da entrega dos produtos
-   */
-  price: number;
-  /**
-   * Código do serviço de entrega usado
-   */
-  delivery_code: '20133' | '03298' | '03220';
-  /**
-   * Nome da pessoa designada para receber a entrega
-   */
-  recipient: string;
-}
+// export interface OrderShipping {
+//   /**
+//    * Preço da entrega dos produtos
+//    */
+//   price: number;
+//   /**
+//    * Código do serviço de entrega usado
+//    */
+//   delivery_code: '20133' | '03298' | '03220';
+//   /**
+//    * Nome da pessoa designada para receber a entrega
+//    */
+//   recipient: string;
+// }
 
 export type ResponseUser = Omit<OrderUserSchema, 'birthdate'>;
 
@@ -163,7 +163,10 @@ type Discount = HasDiscount | HasntDiscount
 export interface Order extends Omit<OrderSchema, 'id'> {
   user: ResponseUser;
   items: OrderItemSchema[];
-  shipping: OrderShipping;
+  /**
+   * Preço total da entrega em centavos
+   */
+  shipping: number;
   billing_address: ResponseAddress;
   shipping_address: ResponseAddress;
   coupon: Discount;

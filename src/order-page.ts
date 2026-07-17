@@ -162,7 +162,7 @@ const OrderPage = defineComponent({
      * Retorna o preço de entrega do pedido
      */
     getOrderShippingPrice (): number {
-      return this.order?.shipping.price ?? 0
+      return this.order?.shipping ?? 0
     },
 
     /**
