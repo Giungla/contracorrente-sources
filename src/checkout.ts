@@ -45,7 +45,7 @@ import {
 } from '../utils/consts'
 
 import {
-  AddressWithDelivery,
+  type AddressWithDelivery, AvailableSelectableDeliveryOptions,
   type CartCouponParams,
   type CartCouponResponse,
   type CartCouponResponseError,
@@ -83,11 +83,11 @@ import {
 
 import {
   type Nullable,
+  type BRLString,
   type ResponsePattern,
   type FunctionErrorPattern,
   type ResponsePatternCallback,
   type FunctionSucceededPattern,
-  type BRLString,
 } from '../types/global'
 
 import {
@@ -119,10 +119,15 @@ import {
 import {
   deliveryType,
   deliveryCodes,
+  DELIVERY_PROVIDERS,
   getDeliveryCodeName,
   type DeliveryTypes,
   type DeliveryPlace,
   type DeliveryCodes,
+  type DeliveryProvidersKeys,
+  type UmLivroDeliveryOption,
+  type CorreiosDeliveryOption,
+  type AvailableDeliveryOptions,
 } from '../types/delivery'
 
 import {
@@ -130,13 +135,9 @@ import {
 } from '../types/http'
 
 import {
+  type AddressTypes,
   addressType,
-  AddressTypes,
 } from '../types/address'
-
-import {
-  DeliveryOption,
-} from '../types/single-product-page'
 
 import {
   BLUR_EVENT,
@@ -151,8 +152,8 @@ import {
 } from '../utils/math'
 
 import {
-  priceType,
   type PriceTypes,
+  priceType,
 } from '../types/price'
 
 import {
@@ -170,6 +171,10 @@ import {
 import {
   couponType,
 } from '../types/coupon'
+
+import {
+  initiateCheckoutTracking,
+} from '../utils/tracking'
 
 const CHECKOUT_BASE_PATH = `${XANO_BASE_URL}/api:vvvJTKZJ`
 
@@ -211,7 +216,7 @@ async function searchAddress <T extends AddressWithDelivery> ({ cep, signal, inc
   try {
     const response = await fetch(`${CHECKOUT_BASE_PATH}/address`, {
       ...buildRequestOptions([], HttpMethod.POST),
-      signal,
+      signal: signal ?? null,
       priority: 'high',
       body: stringify({
         include_delivery,
@@ -308,7 +313,9 @@ const CheckoutComponent = defineComponent({
 
       installmentsMessageRef: ref<Nullable<HTMLDivElement>>(NULL_VALUE),
 
-      shippingMethodMessageRef: ref<Nullable<HTMLDivElement>>(NULL_VALUE),
+      // shippingMethodMessageRef: ref<Nullable<HTMLDivElement>>(NULL_VALUE),
+      correiosDeliveryMethodMessageRef: ref<Nullable<HTMLDivElement>>(NULL_VALUE),
+      umLivroDeliveryMethodMessageRef: ref<Nullable<HTMLDivElement>>(NULL_VALUE),
 
       generalErrorMessageRef: ref<Nullable<HTMLDivElement>>(NULL_VALUE),
 
@@ -362,6 +369,19 @@ const CheckoutComponent = defineComponent({
       coupon: NULL_VALUE,
       isCouponPending: false,
       couponCode: EMPTY_STRING,
+
+      deliveryProviders: NULL_VALUE,
+
+      selectedDeliveryProviders: [
+        {
+          provider: DELIVERY_PROVIDERS.CORREIOS,
+          selected: NULL_VALUE,
+        },
+        {
+          provider: DELIVERY_PROVIDERS.UMLIVRO,
+          selected: NULL_VALUE,
+        },
+      ],
     }
   },
 
@@ -378,7 +398,7 @@ const CheckoutComponent = defineComponent({
         user,
         cart,
         address,
-        detailed_shipping,
+        delivery_providers,
       } = response.data
 
       if (cart.cart_items < 1) {
@@ -393,7 +413,7 @@ const CheckoutComponent = defineComponent({
         this.customerMail      = user.email
         this.customerCPF       = user.cpf ?? EMPTY_STRING
         this.customerPhone     = user.phone ?? EMPTY_STRING
-        this.customerBirthDate = user.birthDate ?? EMPTY_STRING
+        this.customerBirthDate = user.birth_date ?? EMPTY_STRING
         this.isSubscriber      = user.is_subscriber
 
         this.shippingRecipient = user.name
@@ -413,9 +433,13 @@ const CheckoutComponent = defineComponent({
         this.billingState        = address.uf
       }
 
-      if (detailed_shipping) {
-        this.detailedShipping = detailed_shipping
+      if (isArray(delivery_providers)) {
+        this.deliveryProviders = delivery_providers
       }
+
+      // if (detailed_shipping) {
+      //   this.detailedShipping = detailed_shipping
+      // }
 
       this.cart = cart
     })
@@ -474,6 +498,19 @@ const CheckoutComponent = defineComponent({
       })
 
       isPageLoading(false)
+
+      initiateCheckoutTracking().then(response => {
+        if (!response.succeeded) return
+
+        const {
+          event_id,
+          event_body,
+        } = response.data.meta
+
+        fbq?.('track', 'InitiateCheckout', event_body, {
+          eventID: event_id,
+        })
+      })
     })
 
     this.debouncedOrderPrice = debounce(() => {
@@ -602,11 +639,11 @@ const CheckoutComponent = defineComponent({
           }
 
           const {
-            delivery_details,
+            delivery_providers,
           } = address.data
 
-          if (delivery_details) {
-            this.detailedShipping = delivery_details
+          if (delivery_providers) {
+            this.deliveryProviders = delivery_providers
           }
         })
       } else {
@@ -621,6 +658,49 @@ const CheckoutComponent = defineComponent({
      */
     setDeliveryMethod (coProduto: DeliveryCodes): void {
       this.selectedShippingMethod = coProduto
+    },
+
+    /**
+     * Configura um valor para o provider `Correios`
+     */
+    setCorreiosDeliveryProviderOption (value: Nullable<string>): void {
+      this.setDeliveryProvider(DELIVERY_PROVIDERS.CORREIOS, value)
+    },
+
+    /**
+     * Configura um valor para o provider `Um Livro`
+     */
+    setUmLivroDeliveryProviderOption (value: Nullable<string>): void {
+      this.setDeliveryProvider(DELIVERY_PROVIDERS.UMLIVRO, value)
+    },
+
+    /**
+     * Seleciona um valor para o DeliveryProvider escolhido
+     */
+    setDeliveryProvider (selectedProvider: DeliveryProvidersKeys, value: Nullable<string>): void {
+      for (const deliveryProvider of this.selectedDeliveryProviders) {
+        if (deliveryProvider.provider === selectedProvider) {
+          deliveryProvider.selected = value
+
+          break
+        }
+      }
+    },
+
+    /**
+     * Captura o valor selecionado no provider indicado
+     */
+    getSelectedDeliveryProviderValue (selectedProvider: DeliveryProvidersKeys): DeliveryCodes | string | null {
+      return this.selectedDeliveryProviders.find(({ provider }) => provider === selectedProvider)?.selected ?? NULL_VALUE
+    },
+
+    /**
+     * Limpa todas as seleções realizadas nos métodos de entrega
+     */
+    clearSelectedDeliveryProviders (): void {
+      for (const deliveryProvider of this.selectedDeliveryProviders) {
+        deliveryProvider.selected = NULL_VALUE
+      }
     },
 
     /**
@@ -753,7 +833,7 @@ const CheckoutComponent = defineComponent({
         coupon,
         couponCode,
         deliveryPlace,
-        selectedShippingMethod,
+        deliveryProviders,
 
         isCreditCard,
         customerCreditCardHolder,
@@ -779,7 +859,9 @@ const CheckoutComponent = defineComponent({
             ...(!isNull(deliveryPlace) && {
               delivery_place: deliveryPlace,
             }),
-            shipping_method: selectedShippingMethod as DeliveryCodes,
+            delivery_providers: this.selectedDeliveryProviders.filter(({ provider }) => {
+              return deliveryProviders?.some(deliveryProvider => deliveryProvider.provider === provider)
+            }),
             customer: {
               name: isCreditCard
                 ? customerCreditCardHolder
@@ -889,7 +971,7 @@ const CheckoutComponent = defineComponent({
 
       const {
         address,
-        delivery_details,
+        delivery_providers,
       } = response.data
 
       this[`${_addressType}Address`]      = address.logradouro
@@ -897,8 +979,8 @@ const CheckoutComponent = defineComponent({
       this[`${_addressType}State`]        = address.uf
       this[`${_addressType}City`]         = address.localidade
 
-      if (delivery_details) {
-        this.detailedShipping = delivery_details
+      if (delivery_providers) {
+        this.deliveryProviders = delivery_providers
       }
 
       return true
@@ -1009,6 +1091,47 @@ const CheckoutComponent = defineComponent({
       this.coupon     = NULL_VALUE
       this.couponCode = EMPTY_STRING
     },
+
+    /**
+     * Indica se um provider específico está presente no carrinho
+     */
+    hasSpecificProvider (selectedProvider: DeliveryProvidersKeys): boolean {
+      const { availableDeliveryProviders } = this
+
+      return objectSize(availableDeliveryProviders) > 0 && includes(availableDeliveryProviders, selectedProvider)
+    },
+
+    /**
+     * Indica se um provider específico possui um serviço de entrega selecionado
+     */
+    hasSelectionInSpecificProvider (deliveryProvider: DeliveryProvidersKeys): boolean {
+      if (!this.hasSpecificProvider(deliveryProvider)) return false
+
+      const {
+        selectedDeliveryProviders,
+      } = this
+
+      const selectedDeliveryProvider = selectedDeliveryProviders.find(({ provider }) => provider === deliveryProvider)
+
+      return !isNull(selectedDeliveryProvider?.selected ?? NULL_VALUE)
+    },
+
+    /**
+     * Retorna as opções de entrega para um provider
+     */
+    getSpecificProviderOptions <T extends AvailableDeliveryOptions> (selectedProvider: DeliveryProvidersKeys): T[] | undefined {
+      const {
+        deliveryProviders,
+      } = this
+
+      if (!deliveryProviders) return
+
+      const deliveryProvider = deliveryProviders.find(({ provider }) => provider === selectedProvider)
+
+      if (!deliveryProvider) return
+
+      return deliveryProvider.options
+    },
   },
 
   computed: {
@@ -1045,6 +1168,59 @@ const CheckoutComponent = defineComponent({
      */
     isDiffAddress (): boolean {
       return this.deliveryPlace === deliveryType.DIFF
+    },
+
+    /**
+     * Retorna a lista de serviços de entregas disponíveis para o carrinho atual
+     */
+    availableDeliveryProviders (): DeliveryProvidersKeys[] {
+      const {
+        deliveryProviders,
+      } = this
+
+      return deliveryProviders?.map(({ provider }) => provider) ?? []
+    },
+
+    /**
+     * Retorna um array contendo os valores de fretes presentes no carrinho
+     */
+    getShippingProvidersPriceList (): number[] {
+      const {
+        deliveryProviders,
+      } = this
+
+      if (!deliveryProviders) return []
+
+      const prices: number[] = []
+
+      for (const deliveryProvider of deliveryProviders) {
+        const selectedProviderOption = this.getSelectedDeliveryProviderValue(deliveryProvider.provider)
+
+        if (!selectedProviderOption) continue
+
+        switch (deliveryProvider.provider) {
+          case DELIVERY_PROVIDERS.CORREIOS:
+          {
+            const selectedDeliveryOption = deliveryProvider.options.find(({ coProduto }) => coProduto === selectedProviderOption)
+
+            if (!selectedDeliveryOption) continue
+
+            pushIf(prices, selectedDeliveryOption.pcFinal)
+
+            break
+          }
+          case DELIVERY_PROVIDERS.UMLIVRO:
+          {
+            const selectedDeliveryOption = deliveryProvider.options.find(({ code }) => code === selectedProviderOption)
+
+            if (!selectedDeliveryOption) continue
+
+            pushIf(prices, selectedDeliveryOption.price)
+          }
+        }
+      }
+
+      return prices
     },
 
     /**
@@ -1439,15 +1615,37 @@ const CheckoutComponent = defineComponent({
     },
 
     /**
-     * Realiza e retorna a validação
+     * Retorna o objeto de validação para o serviço de entrega via Correios
      */
-    shippingMethodValidation (): ISingleValidateCheckout {
+    correiosDeliveryValidation (): ISingleValidateCheckout {
       return buildFieldValidation(
-        this.shippingMethodMessageRef,
-        !isNull(this.selectedShippingMethod),
-        !this.showShippingMethod,
+        this.correiosDeliveryMethodMessageRef,
+        this.hasSelectionInSpecificProvider(DELIVERY_PROVIDERS.CORREIOS), // Será válido se a entrada 'correios' possuir um valor selecionado
+        !this.hasSpecificProvider(DELIVERY_PROVIDERS.CORREIOS), // Ignora se 'correios' não estiver presente como provider de entrega
       )
     },
+
+    /**
+     * Retorna o objeto de validação para o serviço de entrega via Um Livro
+     */
+    umLivroDeliveryValidation (): ISingleValidateCheckout {
+      return buildFieldValidation(
+        this.umLivroDeliveryMethodMessageRef,
+        this.hasSelectionInSpecificProvider(DELIVERY_PROVIDERS.UMLIVRO), // Será válido se a entrada 'um-livro' possuir um valor selecionado
+        !this.hasSpecificProvider(DELIVERY_PROVIDERS.UMLIVRO), // Ignora se 'um-livro' não estiver presente como provider de entrega
+      )
+    },
+
+    /**
+     * Realiza e retorna a validação
+     */
+    // shippingMethodValidation (): ISingleValidateCheckout {
+    //   return buildFieldValidation(
+    //     this.shippingMethodMessageRef,
+    //     !isNull(this.selectedShippingMethod),
+    //     !this.showShippingMethod,
+    //   )
+    // },
 
     /**
      * Indica se o endereço de entrega deve ser validado
@@ -1486,7 +1684,9 @@ const CheckoutComponent = defineComponent({
         this.shippingNeighborhoodValidation,
         this.shippingCityValidation,
         this.shippingStateValidation,
-        this.shippingMethodValidation,
+        // this.shippingMethodValidation,
+        this.correiosDeliveryValidation,
+        this.umLivroDeliveryValidation,
         this.installmentGroupValidation,
       ].filter(({ ignoreIf }) => !ignoreIf)
     },
@@ -1499,16 +1699,14 @@ const CheckoutComponent = defineComponent({
     },
 
     /**
-     * Retorna as opções de método de entrega disponíveis para o cliente
+     * Retorna as opções de entrega disponíveis para os Correios
      */
-    deliveryOptions (): LabeledDeliveryOption[] {
-      const {
-        detailedShipping,
-      } = this
+    correiosDeliveryOptions (): LabeledDeliveryOption[] {
+      const providerOptions = this.getSpecificProviderOptions<CorreiosDeliveryOption>(DELIVERY_PROVIDERS.CORREIOS)
 
-      if (isNull(detailedShipping)) return []
+      if (!providerOptions) return []
 
-      return detailedShipping.map(({ coProduto, pcFinal, prazoEntrega }) => {
+      return providerOptions.map(({ coProduto, pcFinal, prazoEntrega }) => {
         const optionLabel = coProduto === deliveryCodes.IMPRESSO
           ? 'entre 20 e 40 dias'
           : `${prazoEntrega} dias`
@@ -1517,8 +1715,25 @@ const CheckoutComponent = defineComponent({
           coProduto,
           label: [
             getDeliveryCodeName(coProduto),
-            BRLFormatter.format(pcFinal / 100),
+            BRLFormatter.format(decimalRound(pcFinal / 100, 2)),
             optionLabel
+          ].join(' | '),
+        }
+      })
+    },
+
+    umLivroDeliveryOptions (): LabeledDeliveryOption[] {
+      const providerOptions = this.getSpecificProviderOptions<UmLivroDeliveryOption>(DELIVERY_PROVIDERS.UMLIVRO)
+
+      if (!providerOptions) return []
+
+      return providerOptions.map(({ delivery_days, price, code, label }): LabeledDeliveryOption => {
+        return {
+          coProduto: code,
+          label: [
+            label,
+            BRLFormatter.format(decimalRound(price / 100, 2)),
+            `${delivery_days} dias`,
           ].join(' | '),
         }
       })
@@ -1528,7 +1743,8 @@ const CheckoutComponent = defineComponent({
      * Indica se os dados de método de entrega estão disponíveis
      */
     hasShippingDetails (): boolean {
-      return isArray(this.detailedShipping) && objectSize(this.detailedShipping) > 0
+      return objectSize(this.availableDeliveryProviders) > 0
+      // return isArray(this.detailedShipping) && objectSize(this.detailedShipping) > 0
     },
 
     /**
@@ -1544,7 +1760,7 @@ const CheckoutComponent = defineComponent({
 
       if (isNull(selectedPaymentMethod)) return false
 
-      return hasShippingDetails && ((hasShippingDetails && includes([paymentType.PIX, paymentType.TICKET], selectedPaymentMethod)) || (isCreditCard && hasSelectedDeliveryPlace))
+      return hasShippingDetails && ((includes([paymentType.PIX, paymentType.TICKET], selectedPaymentMethod)) || (isCreditCard && hasSelectedDeliveryPlace))
     },
 
     /**
@@ -1710,7 +1926,9 @@ const CheckoutComponent = defineComponent({
 
     /**
      * Indica se o usuário está usando o desconto de assinatura
+     *
      * O desconto de assinatura não será usado nos casos em que o usuário autenticado não for assinante
+     *
      * Ou um desconto aplicado por cupom sob o subtotal/isbn do pedido tenha um benefício maior que o da assinatura
      */
     isUsingSubscription (): boolean {
@@ -1728,7 +1946,7 @@ const CheckoutComponent = defineComponent({
      * Indica se o bloco que exibe o valor de frete será exibido ao usuário
      */
     showDeliveryPrice (): boolean {
-      return objectSize(this.deliveryOptions) > 0 && !isNull(this.selectedShippingMethod)
+      return objectSize(this.getShippingProvidersPriceList) > 0
     },
 
     /**
@@ -1838,20 +2056,24 @@ const CheckoutComponent = defineComponent({
      * Retorna o valor do frete para os itens do pedido
      */
     getShippingPrice (): number {
-      const {
-        detailedShipping,
-        selectedShippingMethod,
-      } = this
+      // const {
+      //   detailedShipping,
+      //   selectedShippingMethod,
+      // } = this
+      //
+      // if (!detailedShipping || !selectedShippingMethod) return 0
+      //
+      // const selectedShippingGroup = detailedShipping.find(shippingProduct => {
+      //   return shippingProduct.coProduto === selectedShippingMethod
+      // })
+      //
+      // return selectedShippingGroup
+      //   ? selectedShippingGroup.pcFinal
+      //   : 0
 
-      if (!detailedShipping || !selectedShippingMethod) return 0
-
-      const selectedShippingGroup = detailedShipping.find(shippingProduct => {
-        return shippingProduct.coProduto === selectedShippingMethod
-      })
-
-      return selectedShippingGroup
-        ? selectedShippingGroup.pcFinal
-        : 0
+      return this.getShippingProvidersPriceList.reduce((finalPrice, price) => {
+        return finalPrice + price
+      }, 0)
     },
 
     /**

@@ -22,9 +22,11 @@ import {
 } from './cart'
 
 import {
-  DeliveryCodes,
+  type DeliveryCodes,
   type DeliveryPlace,
   type DeliveryTypes,
+  type DeliveryProvidersKeys,
+  type AvailableDeliveryProviders,
 } from './delivery'
 
 import {
@@ -343,10 +345,20 @@ export interface CheckoutAppSetup {
    */
   installmentsMessageRef: Ref<Nullable<HTMLDivElement>>;
 
+  // /**
+  //  * Referência ao elemento que exibe a mensagem de erro para as opções de entrega
+  //  */
+  // shippingMethodMessageRef: Ref<Nullable<HTMLDivElement>>;
+
   /**
-   * Referência ao elemento que exibe a mensagem de erro para as opções de entrega
+   * Referência ao elemento que exibe a mensagem de erro para as opções de entrega dos Correios
    */
-  shippingMethodMessageRef: Ref<Nullable<HTMLDivElement>>;
+  correiosDeliveryMethodMessageRef: Ref<Nullable<HTMLDivElement>>;
+
+  /**
+   * Referência o elemento que xibe a mensagem de erro para as opções de entrega da Um Livro
+   */
+  umLivroDeliveryMethodMessageRef: Ref<Nullable<HTMLDivElement>>;
 
   /**
    * Referência ao elemento que exibe a mensagem de erro global após uma tentativa de pagamento
@@ -459,6 +471,16 @@ export interface CheckoutAppData {
    * Registra os dados do cupom capturado ou o registro de erro em caso de falha
    */
   coupon: Nullable<CouponRegister>;
+
+  /**
+   * Dados de entrega disponíveis para os produtos presentes no carrinho
+   */
+  deliveryProviders: Nullable<AvailableDeliveryProviders[]>;
+
+  /**
+   * Registra as opções de entrega possíveis, com os seus valores selecionados
+   */
+  selectedDeliveryProviders: AvailableSelectableDeliveryOptions;
 }
 
 export interface CheckoutInitialParams {
@@ -476,15 +498,15 @@ export interface CheckoutInitialPayload {
   /**
    * Dados do usuário autenticado
    */
-  user: Nullable<User>;
+  user?: User;
   /**
    * Dados do endereço de entrega informado anteriormente
    */
-  address: BaseAddress;
+  address?: BaseAddress;
   /**
    * Dados de entrega para o endereço informado anteriormente
    */
-  detailed_shipping: DeliveryOption[];
+  delivery_providers?: AvailableDeliveryProviders[];
 }
 
 export interface User {
@@ -499,15 +521,15 @@ export interface User {
   /**
    * CPF do usuário autenticado
    */
-  cpf: Nullable<string>;
+  cpf?: string;
   /**
    * Telefone do usuário autenticado
    */
-  phone: Nullable<string>;
+  phone?: string;
   /**
    * Data de aniversário do usuário autenticado formatada no padrão DD/MM/YYYY
    */
-  birthDate: Nullable<string>;
+  birth_date?: string;
   /**
    * Indica se o usuário autenticado é assinante
    */
@@ -578,7 +600,7 @@ export interface AddressWithDelivery {
   /**
    * Opções de entrega
    */
-  delivery_details?: DeliveryOption[];
+  delivery_providers?: AvailableDeliveryProviders[];
 }
 
 export interface LabeledDeliveryOption extends Pick<DeliveryOption, 'coProduto'> {
@@ -602,7 +624,7 @@ export interface PostOrder {
   /**
    * Método de entrega selecionado
    */
-  shipping_method: DeliveryCodes;
+  delivery_providers: AvailableSelectableDeliveryOptions;
   /**
    * Dados do usuário que está realizando o pedido
    */
@@ -818,3 +840,28 @@ export interface CartCouponParams {
    */
   code: string;
 }
+
+export interface SelectedDeliveryOptions <T extends DeliveryProvidersKeys, S extends string> {
+  /**
+   * Identificador do serviço de entrega
+   */
+  provider: T;
+  /**
+   * Identificador do item selecionado
+   */
+  selected: Nullable<S>;
+}
+
+type CorreiosSelectableDeliveryOption = SelectedDeliveryOptions<
+  Extract<DeliveryProvidersKeys, 'correios'>,
+  DeliveryCodes
+>;
+
+type UmLivroSelectableDeliveryOption = SelectedDeliveryOptions<
+  Extract<DeliveryProvidersKeys, 'um-livro'>,
+  string
+>;
+
+type AvailableSelectableDeliveryOptions =
+  | [CorreiosSelectableDeliveryOption, UmLivroSelectableDeliveryOption]
+  | [UmLivroSelectableDeliveryOption, CorreiosSelectableDeliveryOption];

@@ -62,3 +62,91 @@ export function getDeliveryCodeName (deliveryCode: DeliveryCodes): string {
       return 'ERROR'
   }
 }
+
+export interface CorreiosDeliveryOption {
+  /**
+   * Preço do serviço de entrega
+   */
+  pcFinal: number;
+  /**
+   * Código do serviço dos Correios
+   */
+  coProduto: DeliveryCodes;
+  /**
+   * Prazo de entrega em dias
+   */
+  prazoEntrega: number;
+}
+
+export interface UmLivroDeliveryOption {
+  /**
+   * Código do serviço
+   *
+   * Composto pelo nome do serviço, código da empresa e código do serviço, separados por -
+   *
+   *
+   * Ex: "correios-1-1", "loggi-18-1"
+   */
+  code: string;
+  /**
+   * Nome do serviço
+   */
+  label: string;
+  /**
+   * Preço de entrega (inteiro)
+   */
+  price: number;
+  /**
+   * Quantidade de dias necessários para a entrega
+   */
+  delivery_days: number;
+}
+
+export type AvailableDeliveryOptions = CorreiosDeliveryOption | UmLivroDeliveryOption;
+
+export interface DeliveryProviderDependents {
+  /**
+   * Identificador único do produto
+   */
+  slug: string;
+  /**
+   * Identificador do SKU
+   */
+  sku_id: number;
+}
+
+export interface DeliveryProvider <T, K> {
+  /**
+   * Identificador do serviço de entrega
+   */
+  provider: T;
+  /**
+   * Informa os produtos que dependem deste meio de entrega
+   */
+  dependent_items: DeliveryProviderDependents[];
+  /**
+   * Opções de entrega disponíveis para o provider
+   */
+  options: K[];
+}
+
+export const DELIVERY_PROVIDERS = ({
+  UMLIVRO: 'um-livro',
+  CORREIOS: 'correios',
+}) as const
+
+export type DeliveryProviders = typeof DELIVERY_PROVIDERS
+
+export type DeliveryProvidersKeys = DeliveryProviders[keyof DeliveryProviders]
+
+export type CorreiosDeliveryProvider = DeliveryProvider<
+  Extract<DeliveryProvidersKeys, DeliveryProviders['CORREIOS']>,
+  CorreiosDeliveryOption
+>;
+
+export type UmLivroDeliveryProvider = DeliveryProvider<
+  Extract<DeliveryProvidersKeys, DeliveryProviders['UMLIVRO']>,
+  UmLivroDeliveryOption
+>;
+
+export type AvailableDeliveryProviders = CorreiosDeliveryProvider | UmLivroDeliveryProvider;

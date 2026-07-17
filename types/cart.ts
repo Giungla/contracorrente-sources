@@ -96,7 +96,7 @@ export interface ResponseItem {
   /**
    * Identificador do SKU
    */
-  sku_id: string;
+  sku_id: number;
   /**
    * Indica se o produto é um POD
    */
