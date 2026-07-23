@@ -659,10 +659,11 @@ async function handleDeliveryInfo (): Promise<undefined | boolean> {
   const {
     quantity,
     shippingCEP,
+    selectedSku,
     isDeliveryLoading,
   } = state
 
-  if (isDeliveryLoading || isNull(shippingCEP) || objectSize(shippingCEP) !== 8) {
+  if (isDeliveryLoading || !shippingCEP || objectSize(shippingCEP) !== 8 || !selectedSku) {
     return false
   }
 
@@ -673,6 +674,7 @@ async function handleDeliveryInfo (): Promise<undefined | boolean> {
   const deliveryInfo = await getDeliveryInfo({
     quantity,
     cep: shippingCEP,
+    sku_id: selectedSku,
     product_slug: productSlug,
   })
 

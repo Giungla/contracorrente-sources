@@ -153,4 +153,8 @@ export interface DeliveryInfoParams {
    * Identificador do produto que será usado na simulação
    */
   product_slug: string;
+  /**
+   * Identificador do SKU
+   */
+  sku_id: number;
 }
