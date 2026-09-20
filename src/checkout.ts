@@ -392,7 +392,13 @@ const CheckoutComponent = defineComponent({
     this.getData({
       cep: localStorage.getItem(CEP_STORAGE_KEY),
     }).then(response => {
-      if (!response.succeeded) return
+      if (!response.succeeded) {
+        location.href = buildURL('/', {
+          reason: 'failed_to_fetch_cart',
+        })
+
+        return
+      }
 
       const {
         user,
