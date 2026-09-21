@@ -178,12 +178,6 @@ import {
 
 const CHECKOUT_BASE_PATH = `${XANO_BASE_URL}/api:vvvJTKZJ`
 
-const PAGSEGURO_PUBLIC_KEY = getAttribute(document.currentScript, 'data-public-key') ?? 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoZ8+gUNjyc4RndTF0k5TIEFSL8gK6aSOPAdxzdMYGCkCYLAlfINFc6ZYK/yxIUKcZ13Ib00C5xOw0ucAE7xi1Lo+b9Xfxt94VNOS/zWz07vOWpfbThMRcgV4/ZurTULo2qdZ26BXq1fw+5j4GwW/9k44Rt/unyq2Q3FVy7a1MuZvKzwA5lYrt2HJAviKqHZm9YdqVZOCn+SM77903Aewc1XUo+SwTSwxcLE4jbjtJ8nE4cd5L1/hEVMmN5woTagtBHvv2BCTy2xZHrkCdGFAGHK2jPYJk4YkNX6fpSKeQRF49UqhxkGRulwKApspjMB8qrWu0ivHn4SZz5kwZJcKhwIDAQAB'
-
-if (isNull(PAGSEGURO_PUBLIC_KEY)) {
-  throw new Error('`Public key was not provided')
-}
-
 function paymentMethodObject (method: PaymentTypes, label: string): CheckoutPaymentMethod {
   return {
     method,
@@ -382,6 +376,8 @@ const CheckoutComponent = defineComponent({
           selected: NULL_VALUE,
         },
       ],
+
+      publicKey: NULL_VALUE,
     }
   },
 
@@ -393,7 +389,7 @@ const CheckoutComponent = defineComponent({
       cep: localStorage.getItem(CEP_STORAGE_KEY),
     }).then(response => {
       if (!response.succeeded) {
-        location.href = buildURL('/', {
+        location.href = buildURL(SLASH_STRING, {
           reason: 'failed_to_fetch_cart',
         })
 
@@ -405,10 +401,11 @@ const CheckoutComponent = defineComponent({
         cart,
         address,
         delivery_providers,
+        public_key,
       } = response.data
 
       if (cart.cart_items < 1) {
-        location.href = buildURL('/', {
+        location.href = buildURL(SLASH_STRING, {
           reason: 'cart_empty',
         })
 
@@ -443,6 +440,8 @@ const CheckoutComponent = defineComponent({
         this.deliveryProviders = delivery_providers
       }
 
+      this.publicKey = public_key
+
       // if (detailed_shipping) {
       //   this.detailedShipping = detailed_shipping
       // }
@@ -450,7 +449,7 @@ const CheckoutComponent = defineComponent({
       this.cart = cart
     })
     .catch(() => {
-      location.href = buildURL('/', {
+      location.href = buildURL(SLASH_STRING, {
         reason: 'failed_capturing_cart',
       })
     })
@@ -1862,10 +1861,19 @@ const CheckoutComponent = defineComponent({
       const YEARS_IN_A_MILLENNIUM = 1000
 
       const {
+        publicKey,
         customerCreditCardCVV,
         customerCreditCardHolder,
         customerCreditCardNumber,
       } = this
+
+      if (!publicKey) {
+        return {
+          errors: [],
+          hasErrors: true,
+          encryptedCard: NULL_VALUE,
+        }
+      }
 
       const [
         month,
@@ -1875,12 +1883,12 @@ const CheckoutComponent = defineComponent({
       const millennium = Math.floor(new Date().getFullYear() / YEARS_IN_A_MILLENNIUM) * YEARS_IN_A_MILLENNIUM
 
       return window.PagSeguro.encryptCard({
+        publicKey,
         expMonth: month,
         expYear: (millennium + parseInt(_year)).toString(),
         holder: customerCreditCardHolder,
         securityCode: customerCreditCardCVV,
         number: numberOnly(customerCreditCardNumber),
-        publicKey: PAGSEGURO_PUBLIC_KEY,
       })
     },
 

@@ -481,6 +481,11 @@ export interface CheckoutAppData {
    * Registra as opções de entrega possíveis, com os seus valores selecionados
    */
   selectedDeliveryProviders: AvailableSelectableDeliveryOptions;
+
+  /**
+   * Chave pública recebida do backend
+   */
+  publicKey: Nullable<string>;
 }
 
 export interface CheckoutInitialParams {
@@ -507,6 +512,10 @@ export interface CheckoutInitialPayload {
    * Dados de entrega para o endereço informado anteriormente
    */
   delivery_providers?: AvailableDeliveryProviders[];
+  /**
+   * Chave pública usada para assinatura dos dados do cartão de crédito
+   */
+  public_key: string;
 }
 
 export interface User {
